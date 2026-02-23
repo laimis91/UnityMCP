@@ -131,6 +131,44 @@
     - `componentCount`
     - `missingComponentCount`
     - `items[]` (component summaries)
+- `scene.destroyObject`
+  - Destroys a scene `GameObject` or `Component` by `instanceId` using Unity Undo.
+  - Params:
+    - `instanceId` (required, integer)
+  - Notes:
+    - `Transform` component targets are rejected (destroy the `GameObject` instead).
+    - Scene objects/components only (asset/prefab targets are rejected).
+  - Returns:
+    - `destroyed`
+    - `destroyedKind` (`gameObject` or `component`)
+    - `destroyedInstanceId`
+    - `target` (pre-destroy object summary)
+- `scene.getComponentProperties`
+  - Reads a constrained set of serialized properties for a `Component` by `instanceId`.
+  - Params:
+    - `componentInstanceId` (required, integer; must reference a `Component`)
+  - Returns:
+    - `component`
+    - `target`
+    - `visiblePropertyCount`
+    - `propertyCount` (supported/readable)
+    - `unsupportedPropertyCount`
+    - `properties` (property-path/value map)
+    - `unsupportedProperties[]`
+- `scene.setComponentProperties`
+  - Writes a constrained set of serialized `Component` properties by property path.
+  - Params:
+    - `componentInstanceId` (required, integer; must reference a `Component`)
+    - `properties` (required, object; property-path/value map)
+  - Notes:
+    - Rejects `m_Script`, non-editable properties, and unsupported property types.
+    - Uses Unity Undo (`Undo.RecordObject`) before applying serialized changes.
+  - Returns:
+    - `component`
+    - `target`
+    - `appliedModifiedProperties`
+    - `appliedCount`
+    - `updated[]`
 - `scene.setTransform`
   - Mutates basic transform properties on a `GameObject`/`Component` target.
   - Params:
@@ -608,12 +646,54 @@ Request:
 }
 ```
 
-## `scene.setTransform` Example
+## `scene.destroyObject` Example
 Request:
 ```json
 {
   "jsonrpc": "2.0",
   "id": 22,
+  "method": "scene.destroyObject",
+  "params": {
+    "instanceId": 45458
+  }
+}
+```
+
+## `scene.getComponentProperties` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 23,
+  "method": "scene.getComponentProperties",
+  "params": {
+    "componentInstanceId": 45448
+  }
+}
+```
+
+## `scene.setComponentProperties` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 24,
+  "method": "scene.setComponentProperties",
+  "params": {
+    "componentInstanceId": 45448,
+    "properties": {
+      "m_Enabled": true
+    }
+  }
+}
+```
+
+## `scene.setTransform` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 25,
   "method": "scene.setTransform",
   "params": {
     "instanceId": 45444,
@@ -628,7 +708,7 @@ Request:
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 23,
+  "id": 26,
   "method": "scene.addComponent",
   "params": {
     "instanceId": 45458,

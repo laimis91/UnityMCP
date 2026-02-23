@@ -26,6 +26,9 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `scene.selectByPath`
   - `scene.findByPath`
   - `scene.getComponents`
+  - `scene.destroyObject`
+  - `scene.getComponentProperties`
+  - `scene.setComponentProperties`
   - `scene.setTransform`
   - `scene.addComponent`
   - `scene.setSelection`
@@ -169,6 +172,9 @@ Default endpoint:
    - `scene.selectByPath`
    - `scene.findByPath`
    - `scene.getComponents`
+   - `scene.destroyObject`
+   - `scene.getComponentProperties`
+   - `scene.setComponentProperties`
    - `scene.setTransform`
    - `scene.addComponent`
    - `scene.setSelection`
@@ -189,7 +195,9 @@ Selection tool note:
 - `scene.pingObject` pings/highlights an object by `instanceId` without changing selection.
 - `scene.frameSelection` frames the current selection in the Scene view (best effort).
 - `scene.frameObject` frames a specific scene object by `instanceId` (best effort) while preserving the previous selection when possible.
-- `scene.getComponents` / `scene.setTransform` / `scene.addComponent` enable basic component inspection and safe scene-object edits from MCP.
+- `scene.getComponents` / `scene.getComponentProperties` / `scene.setComponentProperties` / `scene.setTransform` / `scene.addComponent` enable basic component inspection and safe scene-object edits from MCP.
+- `scene.destroyObject` deletes a scene `GameObject` or `Component` with Undo support (destroying `Transform` directly is rejected).
+- Component property read/write uses a constrained serialized-property MVP (common simple types only; unsupported/non-editable properties fail clearly).
 - `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
 
 Example MCP `initialize` request:

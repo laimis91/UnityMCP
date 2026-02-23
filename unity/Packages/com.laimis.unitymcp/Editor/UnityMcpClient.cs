@@ -193,6 +193,9 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
                 "scene.findByPath" => BuildFindByPathResponse(idToken, root),
                 "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
+                "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
+                "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
+                "scene.setComponentProperties" => BuildSetComponentPropertiesResponse(idToken, root),
                 "scene.setTransform" => BuildSetTransformResponse(idToken, root),
                 "scene.addComponent" => BuildAddComponentResponse(idToken, root),
                 "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
@@ -413,6 +416,155 @@ internal sealed class UnityMcpClient : IDisposable
             componentCount = items.Count,
             missingComponentCount,
             items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildDestroyObjectResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.destroyObject");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+
+        if (resolvedObject is Transform)
+        {
+            throw new ArgumentException("Destroying a Transform component directly is not supported. Destroy the GameObject instead.");
+        }
+
+        string destroyedKind;
+        if (resolvedObject is GameObject gameObject)
+        {
+            ValidateDestroyableSceneObject(gameObject, "instanceId");
+            destroyedKind = "gameObject";
+        }
+        else if (resolvedObject is Component component)
+        {
+            ValidateDestroyableSceneObject(component, "instanceId");
+            destroyedKind = "component";
+        }
+        else
+        {
+            throw new ArgumentException("Parameter 'instanceId' must reference a scene GameObject or Component.");
+        }
+
+        var targetSummary = CreateObjectSummary(resolvedObject);
+        Undo.DestroyObjectImmediate(resolvedObject);
+
+        var result = new
+        {
+            destroyed = true,
+            destroyedKind,
+            destroyedInstanceId = instanceId,
+            target = targetSummary
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetComponentPropertiesResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.getComponentProperties");
+        var componentInstanceId = ParseRequiredIntegerParameter(paramsObject, "componentInstanceId");
+        var resolvedObject = ResolveObjectByInstanceId(componentInstanceId, "componentInstanceId");
+        var component = ResolveComponentTarget(resolvedObject, "componentInstanceId");
+
+        using var serializedObject = new SerializedObject(component);
+        serializedObject.UpdateIfRequiredOrScript();
+
+        var properties = new JObject();
+        var unsupported = new JArray();
+        var iterator = serializedObject.GetIterator();
+        var enterChildren = true;
+        var visibleCount = 0;
+        var supportedCount = 0;
+
+        while (iterator.NextVisible(enterChildren))
+        {
+            enterChildren = false;
+            visibleCount++;
+
+            if (TryReadSerializedPropertyValue(iterator, out var serializedValue, out var unsupportedReason))
+            {
+                properties[iterator.propertyPath] = serializedValue;
+                supportedCount++;
+                continue;
+            }
+
+            unsupported.Add(new JObject
+            {
+                ["path"] = iterator.propertyPath,
+                ["propertyType"] = iterator.propertyType.ToString(),
+                ["reason"] = unsupportedReason ?? "Unsupported property type."
+            });
+        }
+
+        var result = new
+        {
+            component = CreateComponentSummary(component),
+            target = CreateObjectSummary(component.gameObject),
+            visiblePropertyCount = visibleCount,
+            propertyCount = supportedCount,
+            unsupportedPropertyCount = unsupported.Count,
+            properties,
+            unsupportedProperties = unsupported
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetComponentPropertiesResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.setComponentProperties");
+        var componentInstanceId = ParseRequiredIntegerParameter(paramsObject, "componentInstanceId");
+        if (!paramsObject.TryGetValue("properties", out var propertiesToken) || propertiesToken is not JObject propertiesObject)
+        {
+            throw new ArgumentException("Parameter 'properties' is required and must be an object.");
+        }
+
+        if (!propertiesObject.HasValues)
+        {
+            throw new ArgumentException("Parameter 'properties' must contain at least one property assignment.");
+        }
+
+        var resolvedObject = ResolveObjectByInstanceId(componentInstanceId, "componentInstanceId");
+        var component = ResolveComponentTarget(resolvedObject, "componentInstanceId");
+
+        using var serializedObject = new SerializedObject(component);
+        serializedObject.UpdateIfRequiredOrScript();
+
+        Undo.RecordObject(component, "UnityMCP Set Component Properties");
+
+        var updatedPaths = new List<string>();
+        foreach (var propertyEntry in propertiesObject.Properties())
+        {
+            var propertyPath = propertyEntry.Name;
+            if (string.IsNullOrWhiteSpace(propertyPath))
+            {
+                throw new ArgumentException("Property paths in 'properties' must not be empty.");
+            }
+
+            var property = serializedObject.FindProperty(propertyPath);
+            if (property == null)
+            {
+                throw new ArgumentException($"Serialized property '{propertyPath}' was not found on component '{component.GetType().Name}'.");
+            }
+
+            ValidateWritableSerializedProperty(property);
+            WriteSerializedPropertyValue(property, propertyEntry.Value);
+            updatedPaths.Add(property.propertyPath);
+        }
+
+        var appliedModifiedProperties = serializedObject.ApplyModifiedProperties();
+        EditorUtility.SetDirty(component);
+
+        var result = new
+        {
+            component = CreateComponentSummary(component),
+            target = CreateObjectSummary(component.gameObject),
+            appliedModifiedProperties,
+            appliedCount = updatedPaths.Count,
+            updated = updatedPaths
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -1334,6 +1486,321 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
+    private static Component ResolveComponentTarget(UnityEngine.Object resolvedObject, string parameterName)
+    {
+        if (resolvedObject is not Component component)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must reference a Component instance.");
+        }
+
+        return component;
+    }
+
+    private static void ValidateDestroyableSceneObject(GameObject gameObject, string parameterName)
+    {
+        if (EditorUtility.IsPersistent(gameObject))
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must reference a scene object, not an asset/prefab.");
+        }
+
+        if (!gameObject.scene.IsValid() || !gameObject.scene.isLoaded)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must reference an object in a loaded scene.");
+        }
+    }
+
+    private static void ValidateDestroyableSceneObject(Component component, string parameterName)
+    {
+        if (component is Transform)
+        {
+            throw new ArgumentException("Destroying a Transform component directly is not supported. Destroy the GameObject instead.");
+        }
+
+        ValidateDestroyableSceneObject(component.gameObject, parameterName);
+    }
+
+    private static void ValidateWritableSerializedProperty(SerializedProperty property)
+    {
+        if (string.Equals(property.propertyPath, "m_Script", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Serialized property 'm_Script' is read-only and cannot be modified.");
+        }
+
+        if (!property.editable)
+        {
+            throw new ArgumentException($"Serialized property '{property.propertyPath}' is not editable.");
+        }
+
+        if (property.propertyType == SerializedPropertyType.Generic)
+        {
+            throw new ArgumentException(
+                $"Serialized property '{property.propertyPath}' is a generic/nested property container. Set a concrete child property path instead.");
+        }
+    }
+
+    private static bool TryReadSerializedPropertyValue(SerializedProperty property, out JToken serializedValue, out string? unsupportedReason)
+    {
+        unsupportedReason = null;
+
+        switch (property.propertyType)
+        {
+            case SerializedPropertyType.Boolean:
+                serializedValue = new JValue(property.boolValue);
+                return true;
+
+            case SerializedPropertyType.Integer:
+                serializedValue = new JValue(property.intValue);
+                return true;
+
+            case SerializedPropertyType.Float:
+                serializedValue = new JValue(property.floatValue);
+                return true;
+
+            case SerializedPropertyType.String:
+                serializedValue = new JValue(property.stringValue);
+                return true;
+
+            case SerializedPropertyType.Enum:
+                serializedValue = CreateEnumSerializedValue(property);
+                return true;
+
+            case SerializedPropertyType.Color:
+                serializedValue = CreateColorArray(property.colorValue);
+                return true;
+
+            case SerializedPropertyType.ObjectReference:
+                serializedValue = property.objectReferenceValue != null
+                    ? JToken.FromObject(CreateObjectSummary(property.objectReferenceValue))
+                    : JValue.CreateNull();
+                return true;
+
+            case SerializedPropertyType.LayerMask:
+                serializedValue = new JValue(property.intValue);
+                return true;
+
+            case SerializedPropertyType.Vector2:
+                serializedValue = CreateVector2Array(property.vector2Value);
+                return true;
+
+            case SerializedPropertyType.Vector3:
+                serializedValue = CreateVector3Array(property.vector3Value);
+                return true;
+
+            case SerializedPropertyType.Vector4:
+                serializedValue = CreateVector4Array(property.vector4Value);
+                return true;
+
+            case SerializedPropertyType.Rect:
+                serializedValue = CreateRectArray(property.rectValue);
+                return true;
+
+            case SerializedPropertyType.Bounds:
+                serializedValue = CreateBoundsObject(property.boundsValue);
+                return true;
+
+            case SerializedPropertyType.Quaternion:
+                serializedValue = CreateQuaternionArray(property.quaternionValue);
+                return true;
+
+            default:
+                serializedValue = JValue.CreateNull();
+                unsupportedReason = $"SerializedPropertyType '{property.propertyType}' is not supported in the MVP.";
+                return false;
+        }
+    }
+
+    private static JToken CreateEnumSerializedValue(SerializedProperty property)
+    {
+        var index = property.enumValueIndex;
+        var enumNames = property.enumNames;
+        var enumDisplayNames = property.enumDisplayNames;
+
+        string? enumName = index >= 0 && index < enumNames.Length ? enumNames[index] : null;
+        string? enumDisplayName = index >= 0 && index < enumDisplayNames.Length ? enumDisplayNames[index] : null;
+
+        return new JObject
+        {
+            ["index"] = index,
+            ["name"] = enumName,
+            ["displayName"] = enumDisplayName
+        };
+    }
+
+    private static void WriteSerializedPropertyValue(SerializedProperty property, JToken valueToken)
+    {
+        var propertyPath = property.propertyPath;
+
+        switch (property.propertyType)
+        {
+            case SerializedPropertyType.Boolean:
+                property.boolValue = ParseBooleanToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Integer:
+            case SerializedPropertyType.LayerMask:
+                property.intValue = ParseIntegerToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Float:
+                property.floatValue = ParseFloatToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.String:
+                property.stringValue = ParseStringToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Enum:
+                property.enumValueIndex = ParseEnumToken(valueToken, property, propertyPath);
+                return;
+
+            case SerializedPropertyType.Color:
+                property.colorValue = ParseColorToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Vector2:
+                property.vector2Value = ParseVector2Token(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Vector3:
+                property.vector3Value = ParseVector3Parameter(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Vector4:
+                property.vector4Value = ParseVector4Token(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Rect:
+                property.rectValue = ParseRectToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Bounds:
+                property.boundsValue = ParseBoundsToken(valueToken, propertyPath);
+                return;
+
+            case SerializedPropertyType.Quaternion:
+                property.quaternionValue = ParseQuaternionToken(valueToken, propertyPath);
+                return;
+
+            default:
+                throw new ArgumentException(
+                    $"Serialized property '{propertyPath}' has unsupported type '{property.propertyType}' for writes in the MVP.");
+        }
+    }
+
+    private static bool ParseBooleanToken(JToken token, string propertyPath)
+    {
+        if (token.Type != JTokenType.Boolean)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a boolean value.");
+        }
+
+        var value = token.Value<bool?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a boolean value.");
+        }
+
+        return value.Value;
+    }
+
+    private static int ParseIntegerToken(JToken token, string propertyPath)
+    {
+        if (token.Type != JTokenType.Integer)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to an integer value.");
+        }
+
+        var value = token.Value<int?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to an integer value.");
+        }
+
+        return value.Value;
+    }
+
+    private static float ParseFloatToken(JToken token, string propertyPath)
+    {
+        if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a numeric value.");
+        }
+
+        var value = token.Value<float?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a numeric value.");
+        }
+
+        return value.Value;
+    }
+
+    private static string ParseStringToken(JToken token, string propertyPath)
+    {
+        if (token.Type != JTokenType.String)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a string value.");
+        }
+
+        var value = token.Value<string>();
+        if (value == null)
+        {
+            throw new ArgumentException($"Property '{propertyPath}' must be set to a string value.");
+        }
+
+        return value;
+    }
+
+    private static int ParseEnumToken(JToken token, SerializedProperty property, string propertyPath)
+    {
+        if (token.Type == JTokenType.Integer)
+        {
+            var index = token.Value<int?>();
+            if (!index.HasValue)
+            {
+                throw new ArgumentException($"Property '{propertyPath}' enum value must be an integer index or string name.");
+            }
+
+            return ValidateEnumIndex(property, propertyPath, index.Value);
+        }
+
+        if (token.Type == JTokenType.String)
+        {
+            var name = token.Value<string>();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException($"Property '{propertyPath}' enum name cannot be empty.");
+            }
+
+            var trimmedName = name!.Trim();
+            var enumNames = property.enumNames;
+            for (var index = 0; index < enumNames.Length; index++)
+            {
+                if (string.Equals(enumNames[index], trimmedName, StringComparison.Ordinal) ||
+                    string.Equals(property.enumDisplayNames[index], trimmedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return index;
+                }
+            }
+
+            throw new ArgumentException(
+                $"Property '{propertyPath}' enum name '{trimmedName}' was not found. Use a valid enum name/display name or index.");
+        }
+
+        throw new ArgumentException($"Property '{propertyPath}' enum value must be an integer index or string name.");
+    }
+
+    private static int ValidateEnumIndex(SerializedProperty property, string propertyPath, int index)
+    {
+        if (index < 0 || index >= property.enumNames.Length)
+        {
+            throw new ArgumentException(
+                $"Property '{propertyPath}' enum index {index} is out of range (0-{Math.Max(0, property.enumNames.Length - 1)}).");
+        }
+
+        return index;
+    }
+
     private static GameObject ResolveGameObjectByHierarchyPath(string rawPath, string? rawScenePath, string parameterName)
     {
         var (normalizedPath, normalizedScenePath, allMatches, activeMatches) = FindGameObjectsByHierarchyPath(rawPath, rawScenePath);
@@ -1764,6 +2231,95 @@ internal sealed class UnityMcpClient : IDisposable
         return new Vector3(values[0], values[1], values[2]);
     }
 
+    private static float[] ParseFloatArrayToken(JToken token, string parameterName, int expectedCount)
+    {
+        if (token is not JArray array)
+        {
+            throw new ArgumentException($"Property '{parameterName}' must be an array with {expectedCount} numeric values.");
+        }
+
+        var values = new float[expectedCount];
+        var index = 0;
+        foreach (var item in array)
+        {
+            if (index >= expectedCount)
+            {
+                throw new ArgumentException($"Property '{parameterName}' must contain exactly {expectedCount} numeric values.");
+            }
+
+            if (item.Type != JTokenType.Integer && item.Type != JTokenType.Float)
+            {
+                throw new ArgumentException($"Property '{parameterName}' must contain numeric values.");
+            }
+
+            var itemValue = item.Value<float?>();
+            if (!itemValue.HasValue)
+            {
+                throw new ArgumentException($"Property '{parameterName}' must contain numeric values.");
+            }
+
+            values[index] = itemValue.Value;
+            index++;
+        }
+
+        if (index != expectedCount)
+        {
+            throw new ArgumentException($"Property '{parameterName}' must contain exactly {expectedCount} numeric values.");
+        }
+
+        return values;
+    }
+
+    private static Vector2 ParseVector2Token(JToken token, string parameterName)
+    {
+        var values = ParseFloatArrayToken(token, parameterName, 2);
+        return new Vector2(values[0], values[1]);
+    }
+
+    private static Vector4 ParseVector4Token(JToken token, string parameterName)
+    {
+        var values = ParseFloatArrayToken(token, parameterName, 4);
+        return new Vector4(values[0], values[1], values[2], values[3]);
+    }
+
+    private static Color ParseColorToken(JToken token, string parameterName)
+    {
+        var values = ParseFloatArrayToken(token, parameterName, 4);
+        return new Color(values[0], values[1], values[2], values[3]);
+    }
+
+    private static Rect ParseRectToken(JToken token, string parameterName)
+    {
+        var values = ParseFloatArrayToken(token, parameterName, 4);
+        return new Rect(values[0], values[1], values[2], values[3]);
+    }
+
+    private static Bounds ParseBoundsToken(JToken token, string parameterName)
+    {
+        if (token is not JObject objectToken)
+        {
+            throw new ArgumentException($"Property '{parameterName}' must be an object with 'center' and 'size' vector values.");
+        }
+
+        if (!objectToken.TryGetValue("center", out var centerToken))
+        {
+            throw new ArgumentException($"Property '{parameterName}' must include 'center'.");
+        }
+
+        if (!objectToken.TryGetValue("size", out var sizeToken))
+        {
+            throw new ArgumentException($"Property '{parameterName}' must include 'size'.");
+        }
+
+        return new Bounds(ParseVector3Parameter(centerToken, $"{parameterName}.center"), ParseVector3Parameter(sizeToken, $"{parameterName}.size"));
+    }
+
+    private static Quaternion ParseQuaternionToken(JToken token, string parameterName)
+    {
+        var values = ParseFloatArrayToken(token, parameterName, 4);
+        return new Quaternion(values[0], values[1], values[2], values[3]);
+    }
+
     private static string GetHierarchyPath(Transform transform)
     {
         var names = new Stack<string>();
@@ -1936,6 +2492,46 @@ internal sealed class UnityMcpClient : IDisposable
             activeInHierarchy,
             componentType
         };
+    }
+
+    private static JArray CreateVector2Array(Vector2 value)
+    {
+        return new JArray(value.x, value.y);
+    }
+
+    private static JArray CreateVector3Array(Vector3 value)
+    {
+        return new JArray(value.x, value.y, value.z);
+    }
+
+    private static JArray CreateVector4Array(Vector4 value)
+    {
+        return new JArray(value.x, value.y, value.z, value.w);
+    }
+
+    private static JArray CreateColorArray(Color value)
+    {
+        return new JArray(value.r, value.g, value.b, value.a);
+    }
+
+    private static JArray CreateRectArray(Rect value)
+    {
+        return new JArray(value.x, value.y, value.width, value.height);
+    }
+
+    private static JObject CreateBoundsObject(Bounds value)
+    {
+        return new JObject
+        {
+            ["center"] = CreateVector3Array(value.center),
+            ["size"] = CreateVector3Array(value.size),
+            ["extents"] = CreateVector3Array(value.extents)
+        };
+    }
+
+    private static JArray CreateQuaternionArray(Quaternion value)
+    {
+        return new JArray(value.x, value.y, value.z, value.w);
     }
 
     private static float[] ToVectorArray(Vector3 value)

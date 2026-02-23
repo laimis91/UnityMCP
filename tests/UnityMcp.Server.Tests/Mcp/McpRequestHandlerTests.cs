@@ -64,6 +64,9 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.findByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.destroyObject");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponentProperties");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setComponentProperties");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setTransform");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.addComponent");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setSelection");
@@ -930,6 +933,98 @@ public sealed class McpRequestHandlerTests
         {
             Assert.Equal("scene.getComponents", forwarded.RootElement.GetProperty("method").GetString());
             Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneDestroyObject()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"destroyed":true,"destroyedKind":"gameObject"}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"destroy-1","method":"tools/call","params":{"name":"scene.destroyObject","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.destroyObject", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneGetComponentProperties()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"component":{"instanceId":10},"propertyCount":1,"properties":{"m_Enabled":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"comp-props-1","method":"tools/call","params":{"name":"scene.getComponentProperties","arguments":{"componentInstanceId":45448}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.getComponentProperties", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45448, forwarded.RootElement.GetProperty("params").GetProperty("componentInstanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneSetComponentProperties()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"appliedCount":1,"updated":["m_Enabled"]}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"comp-props-2","method":"tools/call","params":{"name":"scene.setComponentProperties","arguments":{"componentInstanceId":45448,"properties":{"m_Enabled":false}}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.setComponentProperties", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45448, forwardedParams.GetProperty("componentInstanceId").GetInt32());
+            Assert.False(forwardedParams.GetProperty("properties").GetProperty("m_Enabled").GetBoolean());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

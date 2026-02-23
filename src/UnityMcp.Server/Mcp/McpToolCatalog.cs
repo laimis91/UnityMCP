@@ -214,6 +214,62 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "scene.destroyObject",
+                "Destroys a Unity scene object or Component by instance id (Undo-aware; Transform component targets are rejected).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a scene GameObject or Component to destroy."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.getComponentProperties",
+                "Returns a constrained set of serialized properties for a Component by instance id.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("componentInstanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["componentInstanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a Component."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.setComponentProperties",
+                "Sets a constrained set of serialized Component properties by instance id.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("componentInstanceId", "properties"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["componentInstanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a Component."
+                        },
+                        ["properties"] = new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["description"] = "Property path/value map for supported serialized property types."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.setTransform",
                 "Mutates basic transform properties on a GameObject/Component target.",
                 new JsonObject

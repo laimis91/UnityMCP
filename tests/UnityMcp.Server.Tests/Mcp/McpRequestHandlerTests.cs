@@ -61,6 +61,7 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.listOpenScenes");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getSelection");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectObject");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setSelection");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.pingObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.frameSelection");
@@ -809,6 +810,34 @@ public sealed class McpRequestHandlerTests
         var forwardedParams = forwarded.RootElement.GetProperty("params");
         Assert.Equal("scene.selectObject", forwarded.RootElement.GetProperty("method").GetString());
         Assert.Equal(45458, forwardedParams.GetProperty("instanceId").GetInt32());
+        Assert.True(forwardedParams.GetProperty("ping").GetBoolean());
+        Assert.True(forwardedParams.GetProperty("focus").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsPathAndPresentationFlags_WhenToolCallTargetsSceneSelectByPath()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"count":1,"items":[{"instanceId":45444}]}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"sel-path-1","method":"tools/call","params":{"name":"scene.selectByPath","arguments":{"path":"Cube/Main Camera","ping":true,"focus":true}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using var forwarded = JsonDocument.Parse(forwardedRequestJson!);
+        var forwardedParams = forwarded.RootElement.GetProperty("params");
+        Assert.Equal("scene.selectByPath", forwarded.RootElement.GetProperty("method").GetString());
+        Assert.Equal("Cube/Main Camera", forwardedParams.GetProperty("path").GetString());
         Assert.True(forwardedParams.GetProperty("ping").GetBoolean());
         Assert.True(forwardedParams.GetProperty("focus").GetBoolean());
     }

@@ -103,6 +103,14 @@
     - `focus` (optional, boolean)
   - Returns:
     - same payload shape as `scene.getSelection`
+- `scene.selectByPath`
+  - Selects a single Unity scene object by hierarchy path (same format as returned `hierarchyPath`).
+  - Params:
+    - `path` (required, string; example `Cube/Main Camera`)
+    - `ping` (optional, boolean)
+    - `focus` (optional, boolean)
+  - Returns:
+    - same payload shape as `scene.getSelection`
 - `scene.setSelection`
   - Replaces the current Unity Editor selection with the specified `instanceId`s.
   - Params:
@@ -484,6 +492,25 @@ Request:
 }
 ```
 
+## `scene.selectByPath` Example
+Optional params:
+- `ping` (`boolean`): highlights the selected object in the Unity Editor.
+- `focus` (`boolean`): best-effort frames the selection in the Scene view.
+
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "scene.selectByPath",
+  "params": {
+    "path": "Cube/Main Camera",
+    "ping": true,
+    "focus": true
+  }
+}
+```
+
 ## `scene.setSelection` Example
 Optional params:
 - `ping` (`boolean`): highlights the active selected object in the Unity Editor.
@@ -578,7 +605,7 @@ Request:
 }
 ```
 
-`scene.selectObject` / `scene.setSelection` success response (example):
+`scene.selectObject` / `scene.selectByPath` / `scene.setSelection` success response (example):
 ```json
 {
   "jsonrpc": "2.0",

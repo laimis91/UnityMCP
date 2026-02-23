@@ -143,6 +143,33 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "scene.selectByPath",
+                "Selects a single Unity scene object by hierarchy path.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("path"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["path"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Hierarchy path matching the returned object summaries (for example 'Cube/Main Camera')."
+                        },
+                        ["ping"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Optional. Ping/highlight the selected object in the Editor."
+                        },
+                        ["focus"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Optional. Best-effort frame the selection in the Scene view."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.setSelection",
                 "Replaces the Unity Editor selection with the specified object instance ids.",
                 new JsonObject

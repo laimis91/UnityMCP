@@ -190,6 +190,7 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.listOpenScenes" => BuildListOpenScenesResponse(idToken),
                 "scene.getSelection" => BuildGetSelectionResponse(idToken),
                 "scene.selectObject" => BuildSelectObjectResponse(idToken, root),
+                "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
                 "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
                 "scene.pingObject" => BuildPingObjectResponse(idToken, root),
                 "scene.frameSelection" => BuildFrameSelectionResponse(idToken),
@@ -333,6 +334,21 @@ internal sealed class UnityMcpClient : IDisposable
 
         Selection.activeObject = targetObject;
         Selection.objects = new[] { targetObject };
+        ApplySelectionEditorPresentation(targetObject, ping, focus);
+
+        return UnityMcpProtocol.CreateResult(idToken, BuildSelectionSummaryResult());
+    }
+
+    private static string BuildSelectByPathResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.selectByPath");
+        var path = ParseRequiredStringParameter(paramsObject, "path");
+        var ping = ParseOptionalBooleanParameter(paramsObject, "ping");
+        var focus = ParseOptionalBooleanParameter(paramsObject, "focus");
+        var targetObject = ResolveGameObjectByHierarchyPath(path, "path");
+
+        Selection.activeGameObject = targetObject;
+        Selection.objects = new UnityEngine.Object[] { targetObject };
         ApplySelectionEditorPresentation(targetObject, ping, focus);
 
         return UnityMcpProtocol.CreateResult(idToken, BuildSelectionSummaryResult());
@@ -997,6 +1013,22 @@ internal sealed class UnityMcpClient : IDisposable
         return value.Value;
     }
 
+    private static string ParseRequiredStringParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token) || token.Type != JTokenType.String)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' is required and must be a string.");
+        }
+
+        var value = token.Value<string>();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' cannot be empty.");
+        }
+
+        return value!.Trim();
+    }
+
     private static bool ParseOptionalBooleanParameter(JObject paramsObject, string parameterName, bool defaultValue = false)
     {
         if (!paramsObject.TryGetValue(parameterName, out var token))
@@ -1027,6 +1059,98 @@ internal sealed class UnityMcpClient : IDisposable
         }
 
         return resolved;
+    }
+
+    private static GameObject ResolveGameObjectByHierarchyPath(string rawPath, string parameterName)
+    {
+        var normalizedPath = NormalizeHierarchyPath(rawPath);
+        var activeScene = SceneManager.GetActiveScene();
+        var activeMatches = new List<GameObject>();
+        var allMatches = new List<GameObject>();
+
+        var sceneCount = SceneManager.sceneCount;
+        for (var sceneIndex = 0; sceneIndex < sceneCount; sceneIndex++)
+        {
+            var scene = SceneManager.GetSceneAt(sceneIndex);
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                continue;
+            }
+
+            var rootObjects = scene.GetRootGameObjects();
+            foreach (var rootObject in rootObjects)
+            {
+                CollectHierarchyPathMatches(rootObject.transform, normalizedPath, allMatches, activeMatches, activeScene.handle);
+            }
+        }
+
+        if (activeMatches.Count == 1)
+        {
+            return activeMatches[0];
+        }
+
+        if (activeMatches.Count > 1)
+        {
+            throw new ArgumentException(
+                $"Multiple objects match path '{normalizedPath}' in active scene '{activeScene.name}'. Add disambiguation or use instanceId-based selection.",
+                parameterName);
+        }
+
+        if (allMatches.Count == 1)
+        {
+            return allMatches[0];
+        }
+
+        if (allMatches.Count == 0)
+        {
+            throw new ArgumentException($"No scene object found for path '{normalizedPath}'.", parameterName);
+        }
+
+        throw new ArgumentException(
+            $"Multiple objects match path '{normalizedPath}' across open scenes. Use instanceId-based selection.",
+            parameterName);
+    }
+
+    private static string NormalizeHierarchyPath(string path)
+    {
+        var normalized = path.Trim().Replace('\\', '/');
+        if (normalized.StartsWith("/", StringComparison.Ordinal) || normalized.EndsWith("/", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Parameter 'path' must not start or end with '/'.");
+        }
+
+        if (normalized.Contains("//", StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Parameter 'path' must not contain empty path segments.");
+        }
+
+        return normalized;
+    }
+
+    private static void CollectHierarchyPathMatches(
+        Transform transform,
+        string normalizedPath,
+        List<GameObject> allMatches,
+        List<GameObject> activeMatches,
+        int activeSceneHandle)
+    {
+        if (string.Equals(GetHierarchyPath(transform), normalizedPath, StringComparison.Ordinal))
+        {
+            var gameObject = transform.gameObject;
+            allMatches.Add(gameObject);
+
+            if (gameObject.scene.handle == activeSceneHandle)
+            {
+                activeMatches.Add(gameObject);
+            }
+        }
+
+        var childCount = transform.childCount;
+        for (var childIndex = 0; childIndex < childCount; childIndex++)
+        {
+            var child = transform.GetChild(childIndex);
+            CollectHierarchyPathMatches(child, normalizedPath, allMatches, activeMatches, activeSceneHandle);
+        }
     }
 
     private static UnityEngine.Object? TryResolveObjectByEntityId(int instanceId)

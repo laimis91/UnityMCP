@@ -157,6 +157,11 @@ public sealed class McpToolCatalog
                             ["type"] = "string",
                             ["description"] = "Hierarchy path matching the returned object summaries (for example 'Cube/Main Camera')."
                         },
+                        ["scenePath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional Unity scene path used to disambiguate duplicate hierarchy paths across open scenes."
+                        },
                         ["ping"] = new JsonObject
                         {
                             ["type"] = "boolean",
@@ -166,6 +171,28 @@ public sealed class McpToolCatalog
                         {
                             ["type"] = "boolean",
                             ["description"] = "Optional. Best-effort frame the selection in the Scene view."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.findByPath",
+                "Finds Unity scene objects by hierarchy path without changing selection.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("path"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["path"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Hierarchy path matching the returned object summaries (for example 'Cube/Main Camera')."
+                        },
+                        ["scenePath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional Unity scene path used to scope/disambiguate matches."
                         }
                     }
                 }),
@@ -336,6 +363,40 @@ public sealed class McpToolCatalog
             new McpToolDefinition(
                 "assets.import",
                 "Imports an existing asset inside the Unity project's Assets folder.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path under Assets/."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.ping",
+                "Pings/highlights an existing asset in the Unity Project window.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path under Assets/."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.reveal",
+                "Reveals an existing asset in the Unity Project window (focuses Project window and pings).",
                 new JsonObject
                 {
                     ["type"] = "object",

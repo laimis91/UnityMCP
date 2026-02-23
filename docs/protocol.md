@@ -107,10 +107,21 @@
   - Selects a single Unity scene object by hierarchy path (same format as returned `hierarchyPath`).
   - Params:
     - `path` (required, string; example `Cube/Main Camera`)
+    - `scenePath` (optional, string; Unity scene path for disambiguation)
     - `ping` (optional, boolean)
     - `focus` (optional, boolean)
   - Returns:
     - same payload shape as `scene.getSelection`
+- `scene.findByPath`
+  - Finds Unity scene objects by hierarchy path without changing selection.
+  - Params:
+    - `path` (required, string; example `Cube/Main Camera`)
+    - `scenePath` (optional, string; Unity scene path for scoping/disambiguation)
+  - Returns:
+    - `path`
+    - `scenePath`
+    - `count`
+    - `items[]` (object summaries)
 - `scene.setSelection`
   - Replaces the current Unity Editor selection with the specified `instanceId`s.
   - Params:
@@ -166,6 +177,27 @@
     - `mainAssetType`
     - `mainAssetName`
     - `imported`
+- `assets.ping`
+  - Pings/highlights an existing asset in the Project window.
+  - Params:
+    - `assetPath` (required, string, must be project-relative under `Assets/`)
+  - Returns:
+    - `pinged`
+    - `assetPath`
+    - `guid`
+    - `isFolder`
+    - `target`
+- `assets.reveal`
+  - Focuses the Project window, selects the asset, and pings it.
+  - Params:
+    - `assetPath` (required, string, must be project-relative under `Assets/`)
+  - Returns:
+    - `revealed`
+    - `focusedProjectWindow`
+    - `assetPath`
+    - `guid`
+    - `isFolder`
+    - `target`
 - `assets.find`
   - Searches Unity assets using `AssetDatabase.FindAssets(query)`.
   - Params:
@@ -494,6 +526,7 @@ Request:
 
 ## `scene.selectByPath` Example
 Optional params:
+- `scenePath` (`string`): disambiguates duplicate hierarchy paths across open scenes.
 - `ping` (`boolean`): highlights the selected object in the Unity Editor.
 - `focus` (`boolean`): best-effort frames the selection in the Scene view.
 
@@ -505,8 +538,23 @@ Request:
   "method": "scene.selectByPath",
   "params": {
     "path": "Cube/Main Camera",
+    "scenePath": "Assets/_Game/Scenes/TestScene.unity",
     "ping": true,
     "focus": true
+  }
+}
+```
+
+## `scene.findByPath` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "scene.findByPath",
+  "params": {
+    "path": "Cube/Main Camera",
+    "scenePath": "Assets/_Game/Scenes/TestScene.unity"
   }
 }
 ```
@@ -679,6 +727,32 @@ Request:
   "method": "assets.import",
   "params": {
     "assetPath": "Assets/Textures/Test.png"
+  }
+}
+```
+
+## `assets.ping` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 19,
+  "method": "assets.ping",
+  "params": {
+    "assetPath": "Assets/_Game/Scenes/TestScene.unity"
+  }
+}
+```
+
+## `assets.reveal` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "assets.reveal",
+  "params": {
+    "assetPath": "Assets/_Game/Scenes/TestScene.unity"
   }
 }
 ```

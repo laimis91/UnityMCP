@@ -24,6 +24,7 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `scene.getSelection`
   - `scene.selectObject`
   - `scene.selectByPath`
+  - `scene.findByPath`
   - `scene.setSelection`
   - `scene.pingObject`
   - `scene.frameSelection`
@@ -32,6 +33,8 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `scene.findByTag`
   - `assets.find`
   - `assets.import`
+  - `assets.ping`
+  - `assets.reveal`
 
 ## Repository Layout
 - `src/UnityMcp.Server` - MCP relay server
@@ -161,6 +164,7 @@ Default endpoint:
    - `scene.getSelection`
    - `scene.selectObject`
    - `scene.selectByPath`
+   - `scene.findByPath`
    - `scene.setSelection`
    - `scene.pingObject`
    - `scene.frameSelection`
@@ -169,13 +173,17 @@ Default endpoint:
    - `scene.findByTag`
    - `assets.find`
    - `assets.import`
+   - `assets.ping`
+   - `assets.reveal`
 5. Verify a JSON-RPC response is returned.
 
 Selection tool note:
 - `scene.selectObject` / `scene.selectByPath` / `scene.setSelection` support optional `ping` and `focus` booleans to highlight and frame the selection in the Unity Editor.
+- `scene.selectByPath` also supports optional `scenePath` for disambiguating duplicate hierarchy paths across open scenes.
 - `scene.pingObject` pings/highlights an object by `instanceId` without changing selection.
 - `scene.frameSelection` frames the current selection in the Scene view (best effort).
 - `scene.frameObject` frames a specific scene object by `instanceId` (best effort) while preserving the previous selection when possible.
+- `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
 
 Example MCP `initialize` request:
 ```json

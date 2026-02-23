@@ -191,6 +191,7 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.getSelection" => BuildGetSelectionResponse(idToken),
                 "scene.selectObject" => BuildSelectObjectResponse(idToken, root),
                 "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
+                "scene.findByPath" => BuildFindByPathResponse(idToken, root),
                 "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
                 "scene.pingObject" => BuildPingObjectResponse(idToken, root),
                 "scene.frameSelection" => BuildFrameSelectionResponse(idToken),
@@ -199,6 +200,8 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.findByTag" => BuildFindByTagResponse(idToken, root),
                 "assets.find" => BuildFindAssetsResponse(idToken, root),
                 "assets.import" => BuildImportAssetResponse(idToken, root),
+                "assets.ping" => BuildPingAssetResponse(idToken, root),
+                "assets.reveal" => BuildRevealAssetResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -343,15 +346,40 @@ internal sealed class UnityMcpClient : IDisposable
     {
         var paramsObject = RequireParamsObject(root, "scene.selectByPath");
         var path = ParseRequiredStringParameter(paramsObject, "path");
+        var scenePath = ParseOptionalStringParameter(paramsObject, "scenePath");
         var ping = ParseOptionalBooleanParameter(paramsObject, "ping");
         var focus = ParseOptionalBooleanParameter(paramsObject, "focus");
-        var targetObject = ResolveGameObjectByHierarchyPath(path, "path");
+        var targetObject = ResolveGameObjectByHierarchyPath(path, scenePath, "path");
 
         Selection.activeGameObject = targetObject;
         Selection.objects = new UnityEngine.Object[] { targetObject };
         ApplySelectionEditorPresentation(targetObject, ping, focus);
 
         return UnityMcpProtocol.CreateResult(idToken, BuildSelectionSummaryResult());
+    }
+
+    private static string BuildFindByPathResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.findByPath");
+        var path = ParseRequiredStringParameter(paramsObject, "path");
+        var scenePath = ParseOptionalStringParameter(paramsObject, "scenePath");
+        var (normalizedPath, normalizedScenePath, allMatches, _) = FindGameObjectsByHierarchyPath(path, scenePath);
+
+        var items = new List<object>(allMatches.Count);
+        foreach (var match in allMatches)
+        {
+            items.Add(CreateObjectSummary(match));
+        }
+
+        var result = new
+        {
+            path = normalizedPath,
+            scenePath = normalizedScenePath,
+            count = items.Count,
+            items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
     private static string BuildSetSelectionResponse(JToken idToken, JObject root)
@@ -636,6 +664,44 @@ internal sealed class UnityMcpClient : IDisposable
             mainAssetType = mainAssetType?.FullName,
             mainAssetName = mainAsset != null ? mainAsset.name : null,
             imported = true
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildPingAssetResponse(JToken idToken, JObject root)
+    {
+        var (assetPath, guid, targetObject, isFolder) = ResolveAssetNavigationTarget(root, "assets.ping");
+        EditorGUIUtility.PingObject(targetObject);
+
+        var result = new
+        {
+            pinged = true,
+            assetPath,
+            guid,
+            isFolder,
+            target = CreateObjectSummary(targetObject)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildRevealAssetResponse(JToken idToken, JObject root)
+    {
+        var (assetPath, guid, targetObject, isFolder) = ResolveAssetNavigationTarget(root, "assets.reveal");
+
+        EditorUtility.FocusProjectWindow();
+        Selection.activeObject = targetObject;
+        EditorGUIUtility.PingObject(targetObject);
+
+        var result = new
+        {
+            revealed = true,
+            focusedProjectWindow = true,
+            assetPath,
+            guid,
+            isFolder,
+            target = CreateObjectSummary(targetObject)
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -1029,6 +1095,27 @@ internal sealed class UnityMcpClient : IDisposable
         return value!.Trim();
     }
 
+    private static string? ParseOptionalStringParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        if (token.Type != JTokenType.String)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be a string.");
+        }
+
+        var value = token.Value<string>();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' cannot be empty.");
+        }
+
+        return value!.Trim();
+    }
+
     private static bool ParseOptionalBooleanParameter(JObject paramsObject, string parameterName, bool defaultValue = false)
     {
         if (!paramsObject.TryGetValue(parameterName, out var token))
@@ -1061,27 +1148,28 @@ internal sealed class UnityMcpClient : IDisposable
         return resolved;
     }
 
-    private static GameObject ResolveGameObjectByHierarchyPath(string rawPath, string parameterName)
+    private static GameObject ResolveGameObjectByHierarchyPath(string rawPath, string? rawScenePath, string parameterName)
     {
-        var normalizedPath = NormalizeHierarchyPath(rawPath);
+        var (normalizedPath, normalizedScenePath, allMatches, activeMatches) = FindGameObjectsByHierarchyPath(rawPath, rawScenePath);
         var activeScene = SceneManager.GetActiveScene();
-        var activeMatches = new List<GameObject>();
-        var allMatches = new List<GameObject>();
 
-        var sceneCount = SceneManager.sceneCount;
-        for (var sceneIndex = 0; sceneIndex < sceneCount; sceneIndex++)
+        if (!string.IsNullOrWhiteSpace(normalizedScenePath))
         {
-            var scene = SceneManager.GetSceneAt(sceneIndex);
-            if (!scene.IsValid() || !scene.isLoaded)
+            if (allMatches.Count == 1)
             {
-                continue;
+                return allMatches[0];
             }
 
-            var rootObjects = scene.GetRootGameObjects();
-            foreach (var rootObject in rootObjects)
+            if (allMatches.Count == 0)
             {
-                CollectHierarchyPathMatches(rootObject.transform, normalizedPath, allMatches, activeMatches, activeScene.handle);
+                throw new ArgumentException(
+                    $"No scene object found for path '{normalizedPath}' in scene '{normalizedScenePath}'.",
+                    parameterName);
             }
+
+            throw new ArgumentException(
+                $"Multiple objects match path '{normalizedPath}' in scene '{normalizedScenePath}'. Use instanceId-based selection.",
+                parameterName);
         }
 
         if (activeMatches.Count == 1)
@@ -1111,6 +1199,40 @@ internal sealed class UnityMcpClient : IDisposable
             parameterName);
     }
 
+    private static (string NormalizedPath, string? NormalizedScenePath, List<GameObject> AllMatches, List<GameObject> ActiveMatches)
+        FindGameObjectsByHierarchyPath(string rawPath, string? rawScenePath)
+    {
+        var normalizedPath = NormalizeHierarchyPath(rawPath);
+        var normalizedScenePath = NormalizeOptionalScenePath(rawScenePath);
+        var activeScene = SceneManager.GetActiveScene();
+        var activeMatches = new List<GameObject>();
+        var allMatches = new List<GameObject>();
+
+        var sceneCount = SceneManager.sceneCount;
+        for (var sceneIndex = 0; sceneIndex < sceneCount; sceneIndex++)
+        {
+            var scene = SceneManager.GetSceneAt(sceneIndex);
+            if (!scene.IsValid() || !scene.isLoaded)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedScenePath) &&
+                !string.Equals(scene.path, normalizedScenePath, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var rootObjects = scene.GetRootGameObjects();
+            foreach (var rootObject in rootObjects)
+            {
+                CollectHierarchyPathMatches(rootObject.transform, normalizedPath, allMatches, activeMatches, activeScene.handle);
+            }
+        }
+
+        return (normalizedPath, normalizedScenePath, allMatches, activeMatches);
+    }
+
     private static string NormalizeHierarchyPath(string path)
     {
         var normalized = path.Trim().Replace('\\', '/');
@@ -1122,6 +1244,22 @@ internal sealed class UnityMcpClient : IDisposable
         if (normalized.Contains("//", StringComparison.Ordinal))
         {
             throw new ArgumentException("Parameter 'path' must not contain empty path segments.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeOptionalScenePath(string? scenePath)
+    {
+        if (string.IsNullOrWhiteSpace(scenePath))
+        {
+            return null;
+        }
+
+        var normalized = scenePath!.Trim().Replace('\\', '/');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
         }
 
         return normalized;
@@ -1236,6 +1374,29 @@ internal sealed class UnityMcpClient : IDisposable
         {
             return false;
         }
+    }
+
+    private static (string AssetPath, string Guid, UnityEngine.Object TargetObject, bool IsFolder)
+        ResolveAssetNavigationTarget(JObject root, string methodName)
+    {
+        var paramsObject = RequireParamsObject(root, methodName);
+        var rawAssetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var assetPath = NormalizeAndValidateAssetPath(rawAssetPath);
+        var isFolder = AssetDatabase.IsValidFolder(assetPath);
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        var targetObject = AssetDatabase.LoadMainAssetAtPath(assetPath);
+
+        if (targetObject == null && isFolder)
+        {
+            targetObject = AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath);
+        }
+
+        if (targetObject == null || string.IsNullOrWhiteSpace(guid))
+        {
+            throw new ArgumentException($"Asset path '{assetPath}' does not exist or is not available in the AssetDatabase.");
+        }
+
+        return (assetPath, guid, targetObject, isFolder);
     }
 
     private static void ApplySelectionEditorPresentation(UnityEngine.Object? pingTarget, bool ping, bool focus)

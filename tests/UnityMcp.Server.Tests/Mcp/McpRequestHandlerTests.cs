@@ -62,6 +62,7 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getSelection");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectByPath");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.findByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setSelection");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.pingObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.frameSelection");
@@ -69,6 +70,8 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.createGameObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.find");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.import");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.ping");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.reveal");
     }
 
     [Fact]
@@ -843,6 +846,64 @@ public sealed class McpRequestHandlerTests
     }
 
     [Fact]
+    public async Task HandlePostAsync_ForwardsScenePathDisambiguation_WhenToolCallTargetsSceneSelectByPath()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"count":1,"items":[{"instanceId":45444}]}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"sel-path-2","method":"tools/call","params":{"name":"scene.selectByPath","arguments":{"path":"Cube/Main Camera","scenePath":"Assets/_Game/Scenes/TestScene.unity"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using var forwarded = JsonDocument.Parse(forwardedRequestJson!);
+        var forwardedParams = forwarded.RootElement.GetProperty("params");
+        Assert.Equal("scene.selectByPath", forwarded.RootElement.GetProperty("method").GetString());
+        Assert.Equal("Cube/Main Camera", forwardedParams.GetProperty("path").GetString());
+        Assert.Equal("Assets/_Game/Scenes/TestScene.unity", forwardedParams.GetProperty("scenePath").GetString());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneFindByPath()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"path":"Cube/Main Camera","count":1,"items":[{"instanceId":45444}]}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"find-path-1","method":"tools/call","params":{"name":"scene.findByPath","arguments":{"path":"Cube/Main Camera","scenePath":"Assets/_Game/Scenes/TestScene.unity"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.findByPath", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal("Cube/Main Camera", forwarded.RootElement.GetProperty("params").GetProperty("path").GetString());
+            Assert.Equal("Assets/_Game/Scenes/TestScene.unity", forwarded.RootElement.GetProperty("params").GetProperty("scenePath").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
     public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneSetSelection()
     {
         // Arrange
@@ -986,6 +1047,66 @@ public sealed class McpRequestHandlerTests
         {
             Assert.Equal("scene.frameObject", forwarded.RootElement.GetProperty("method").GetString());
             Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsAssetsPing()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"pinged":true,"assetPath":"Assets/Test.asset"}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"asset-ping-1","method":"tools/call","params":{"name":"assets.ping","arguments":{"assetPath":"Assets/Test.asset"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("assets.ping", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal("Assets/Test.asset", forwarded.RootElement.GetProperty("params").GetProperty("assetPath").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsAssetsReveal()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"revealed":true,"assetPath":"Assets/Test.asset"}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"asset-reveal-1","method":"tools/call","params":{"name":"assets.reveal","arguments":{"assetPath":"Assets/Test.asset"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("assets.reveal", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal("Assets/Test.asset", forwarded.RootElement.GetProperty("params").GetProperty("assetPath").GetString());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

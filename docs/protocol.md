@@ -127,6 +127,17 @@
     - `hasSceneSelection`
     - `sceneViewAvailable`
     - `activeObject`
+- `scene.frameObject`
+  - Best-effort frames a specific Unity scene object in the Scene view by `instanceId`.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `framed`
+    - `selectionPreserved`
+    - `sceneViewAvailable`
+    - `hasSceneTarget`
+    - `instanceId`
+    - `target` (object summary)
 - `scene.findByTag`
   - Finds active loaded `GameObject`s matching a tag.
   - Params:
@@ -515,7 +526,7 @@ Request:
 }
 ```
 
-Success response (example):
+`scene.frameSelection` success response (example):
 ```json
 {
   "jsonrpc": "2.0",
@@ -534,7 +545,40 @@ Success response (example):
 }
 ```
 
-Success response (example):
+## `scene.frameObject` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 17,
+  "method": "scene.frameObject",
+  "params": {
+    "instanceId": 45458
+  }
+}
+```
+
+`scene.frameObject` success response (example):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 17,
+  "result": {
+    "framed": true,
+    "selectionPreserved": true,
+    "sceneViewAvailable": true,
+    "hasSceneTarget": true,
+    "instanceId": 45458,
+    "target": {
+      "instanceId": 45458,
+      "name": "Cube",
+      "unityType": "UnityEngine.GameObject"
+    }
+  }
+}
+```
+
+`scene.selectObject` / `scene.setSelection` success response (example):
 ```json
 {
   "jsonrpc": "2.0",

@@ -195,6 +195,23 @@ public sealed class McpToolCatalog
                 "Best-effort frames the current Unity Editor selection in the Scene view.",
                 EmptyObjectSchema()),
             new McpToolDefinition(
+                "scene.frameObject",
+                "Best-effort frames a Unity scene object in the Scene view by instance id without changing selection.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of the scene object to frame."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.createGameObject",
                 "Creates a GameObject in the active scene and optionally sets its world position.",
                 new JsonObject

@@ -193,6 +193,7 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
                 "scene.pingObject" => BuildPingObjectResponse(idToken, root),
                 "scene.frameSelection" => BuildFrameSelectionResponse(idToken),
+                "scene.frameObject" => BuildFrameObjectResponse(idToken, root),
                 "scene.createGameObject" => BuildCreateGameObjectResponse(idToken, root),
                 "scene.findByTag" => BuildFindByTagResponse(idToken, root),
                 "assets.find" => BuildFindAssetsResponse(idToken, root),
@@ -410,6 +411,48 @@ internal sealed class UnityMcpClient : IDisposable
             hasSceneSelection,
             sceneViewAvailable,
             activeObject = activeObject != null ? CreateObjectSummary(activeObject) : null
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildFrameObjectResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.frameObject");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var targetObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var sceneTarget = TryGetSceneFrameTarget(targetObject);
+        var sceneViewAvailable = SceneView.lastActiveSceneView != null;
+        var hasSceneTarget = sceneTarget != null;
+
+        var framed = false;
+        var selectionPreserved = true;
+
+        if (hasSceneTarget && sceneViewAvailable && sceneTarget != null)
+        {
+            var previousSelection = Selection.objects;
+            var previousActiveObject = Selection.activeObject;
+
+            try
+            {
+                Selection.activeObject = sceneTarget;
+                Selection.objects = new UnityEngine.Object[] { sceneTarget };
+                framed = TryFrameSelectionInSceneView();
+            }
+            finally
+            {
+                selectionPreserved = TryRestoreSelection(previousSelection, previousActiveObject);
+            }
+        }
+
+        var result = new
+        {
+            framed,
+            selectionPreserved,
+            sceneViewAvailable,
+            hasSceneTarget,
+            instanceId,
+            target = CreateObjectSummary(targetObject)
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -1028,6 +1071,47 @@ internal sealed class UnityMcpClient : IDisposable
 #pragma warning disable CS0618 // Unity 6 deprecates InstanceIDToObject in favor of EntityIdToObject.
         return EditorUtility.InstanceIDToObject(instanceId);
 #pragma warning restore CS0618
+    }
+
+    private static GameObject? TryGetSceneFrameTarget(UnityEngine.Object targetObject)
+    {
+        GameObject? gameObject = targetObject switch
+        {
+            GameObject go => go,
+            Component component => component.gameObject,
+            _ => null
+        };
+
+        if (gameObject == null)
+        {
+            return null;
+        }
+
+        if (!gameObject.scene.IsValid() || !gameObject.scene.isLoaded)
+        {
+            return null;
+        }
+
+        return gameObject;
+    }
+
+    private static bool TryRestoreSelection(UnityEngine.Object[] previousSelection, UnityEngine.Object? previousActiveObject)
+    {
+        try
+        {
+            Selection.objects = previousSelection ?? Array.Empty<UnityEngine.Object>();
+
+            if (previousActiveObject != null)
+            {
+                Selection.activeObject = previousActiveObject;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void ApplySelectionEditorPresentation(UnityEngine.Object? pingTarget, bool ping, bool focus)

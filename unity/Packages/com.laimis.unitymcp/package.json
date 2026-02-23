@@ -1,0 +1,14 @@
+{
+  "name": "com.laimis.unitymcp",
+  "version": "0.1.0",
+  "displayName": "Unity MCP Bridge",
+  "description": "Unity Editor bridge package for relaying JSON-RPC MCP commands to the Unity Editor.",
+  "unity": "6000.3",
+  "unityRelease": "9f1",
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
+  "author": {
+    "name": "Laimis"
+  }
+}

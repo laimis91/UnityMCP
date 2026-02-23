@@ -63,6 +63,9 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.findByPath");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setTransform");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.addComponent");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.setSelection");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.pingObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.frameSelection");
@@ -897,6 +900,101 @@ public sealed class McpRequestHandlerTests
             Assert.Equal("scene.findByPath", forwarded.RootElement.GetProperty("method").GetString());
             Assert.Equal("Cube/Main Camera", forwarded.RootElement.GetProperty("params").GetProperty("path").GetString());
             Assert.Equal("Assets/_Game/Scenes/TestScene.unity", forwarded.RootElement.GetProperty("params").GetProperty("scenePath").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneGetComponents()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"componentCount":3,"items":[]}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"components-1","method":"tools/call","params":{"name":"scene.getComponents","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.getComponents", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneSetTransform()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"instanceId":45444,"applied":{"position":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"transform-1","method":"tools/call","params":{"name":"scene.setTransform","arguments":{"instanceId":45444,"position":[1,2,3],"localScale":[1,1,1]}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.setTransform", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(3, forwardedParams.GetProperty("position").GetArrayLength());
+            Assert.Equal(3, forwardedParams.GetProperty("localScale").GetArrayLength());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsSceneAddComponent()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"componentCount":4}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"add-component-1","method":"tools/call","params":{"name":"scene.addComponent","arguments":{"instanceId":45444,"typeName":"BoxCollider"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("scene.addComponent", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal("BoxCollider", forwardedParams.GetProperty("typeName").GetString());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

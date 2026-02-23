@@ -25,6 +25,9 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `scene.selectObject`
   - `scene.selectByPath`
   - `scene.findByPath`
+  - `scene.getComponents`
+  - `scene.setTransform`
+  - `scene.addComponent`
   - `scene.setSelection`
   - `scene.pingObject`
   - `scene.frameSelection`
@@ -165,6 +168,9 @@ Default endpoint:
    - `scene.selectObject`
    - `scene.selectByPath`
    - `scene.findByPath`
+   - `scene.getComponents`
+   - `scene.setTransform`
+   - `scene.addComponent`
    - `scene.setSelection`
    - `scene.pingObject`
    - `scene.frameSelection`
@@ -183,6 +189,7 @@ Selection tool note:
 - `scene.pingObject` pings/highlights an object by `instanceId` without changing selection.
 - `scene.frameSelection` frames the current selection in the Scene view (best effort).
 - `scene.frameObject` frames a specific scene object by `instanceId` (best effort) while preserving the previous selection when possible.
+- `scene.getComponents` / `scene.setTransform` / `scene.addComponent` enable basic component inspection and safe scene-object edits from MCP.
 - `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
 
 Example MCP `initialize` request:

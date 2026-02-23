@@ -192,6 +192,9 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.selectObject" => BuildSelectObjectResponse(idToken, root),
                 "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
                 "scene.findByPath" => BuildFindByPathResponse(idToken, root),
+                "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
+                "scene.setTransform" => BuildSetTransformResponse(idToken, root),
+                "scene.addComponent" => BuildAddComponentResponse(idToken, root),
                 "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
                 "scene.pingObject" => BuildPingObjectResponse(idToken, root),
                 "scene.frameSelection" => BuildFrameSelectionResponse(idToken),
@@ -377,6 +380,156 @@ internal sealed class UnityMcpClient : IDisposable
             scenePath = normalizedScenePath,
             count = items.Count,
             items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetComponentsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.getComponents");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var targetGameObject = ResolveGameObjectTarget(resolvedObject, "instanceId");
+
+        var components = targetGameObject.GetComponents<Component>();
+        var items = new List<object>(components.Length);
+        var missingComponentCount = 0;
+
+        foreach (var component in components)
+        {
+            if (component == null)
+            {
+                missingComponentCount++;
+                continue;
+            }
+
+            items.Add(CreateComponentSummary(component));
+        }
+
+        var result = new
+        {
+            target = CreateObjectSummary(targetGameObject),
+            componentCount = items.Count,
+            missingComponentCount,
+            items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetTransformResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.setTransform");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var targetTransform = ResolveTransformTarget(resolvedObject, "instanceId");
+
+        var position = ParseOptionalVector3Parameter(paramsObject, "position");
+        var localPosition = ParseOptionalVector3Parameter(paramsObject, "localPosition");
+        var rotationEuler = ParseOptionalVector3Parameter(paramsObject, "rotationEuler");
+        var localRotationEuler = ParseOptionalVector3Parameter(paramsObject, "localRotationEuler");
+        var localScale = ParseOptionalVector3Parameter(paramsObject, "localScale");
+
+        if (!position.HasValue &&
+            !localPosition.HasValue &&
+            !rotationEuler.HasValue &&
+            !localRotationEuler.HasValue &&
+            !localScale.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one transform property must be provided: position, localPosition, rotationEuler, localRotationEuler, or localScale.");
+        }
+
+        if (position.HasValue && localPosition.HasValue)
+        {
+            throw new ArgumentException("Parameters 'position' and 'localPosition' cannot both be set in the same request.");
+        }
+
+        if (rotationEuler.HasValue && localRotationEuler.HasValue)
+        {
+            throw new ArgumentException("Parameters 'rotationEuler' and 'localRotationEuler' cannot both be set in the same request.");
+        }
+
+        Undo.RecordObject(targetTransform, "UnityMCP Set Transform");
+
+        if (position.HasValue)
+        {
+            targetTransform.position = position.Value;
+        }
+
+        if (localPosition.HasValue)
+        {
+            targetTransform.localPosition = localPosition.Value;
+        }
+
+        if (rotationEuler.HasValue)
+        {
+            targetTransform.rotation = Quaternion.Euler(rotationEuler.Value);
+        }
+
+        if (localRotationEuler.HasValue)
+        {
+            targetTransform.localRotation = Quaternion.Euler(localRotationEuler.Value);
+        }
+
+        if (localScale.HasValue)
+        {
+            targetTransform.localScale = localScale.Value;
+        }
+
+        EditorUtility.SetDirty(targetTransform);
+
+        var result = new
+        {
+            instanceId,
+            target = CreateObjectSummary(resolvedObject),
+            transform = CreateTransformSnapshot(targetTransform),
+            applied = new
+            {
+                position = position.HasValue,
+                localPosition = localPosition.HasValue,
+                rotationEuler = rotationEuler.HasValue,
+                localRotationEuler = localRotationEuler.HasValue,
+                localScale = localScale.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildAddComponentResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.addComponent");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var typeName = ParseRequiredStringParameter(paramsObject, "typeName");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var targetGameObject = ResolveGameObjectTarget(resolvedObject, "instanceId");
+        var componentType = ResolveComponentType(typeName);
+
+        Component? addedComponent;
+        try
+        {
+            addedComponent = Undo.AddComponent(targetGameObject, componentType);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException(ex.Message);
+        }
+
+        if (addedComponent == null)
+        {
+            throw new InvalidOperationException(
+                $"Unity did not return a component instance after adding '{componentType.FullName}' to '{targetGameObject.name}'.");
+        }
+
+        Selection.activeGameObject = targetGameObject;
+
+        var result = new
+        {
+            target = CreateObjectSummary(targetGameObject),
+            addedComponent = CreateComponentSummary(addedComponent),
+            componentCount = targetGameObject.GetComponents<Component>().Length
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -1116,6 +1269,16 @@ internal sealed class UnityMcpClient : IDisposable
         return value!.Trim();
     }
 
+    private static Vector3? ParseOptionalVector3Parameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        return ParseVector3Parameter(token, parameterName);
+    }
+
     private static bool ParseOptionalBooleanParameter(JObject paramsObject, string parameterName, bool defaultValue = false)
     {
         if (!paramsObject.TryGetValue(parameterName, out var token))
@@ -1146,6 +1309,29 @@ internal sealed class UnityMcpClient : IDisposable
         }
 
         return resolved;
+    }
+
+    private static GameObject ResolveGameObjectTarget(UnityEngine.Object resolvedObject, string parameterName)
+    {
+        return resolvedObject switch
+        {
+            GameObject gameObject => gameObject,
+            Component component => component.gameObject,
+            _ => throw new ArgumentException(
+                $"Parameter '{parameterName}' must reference a GameObject or Component instance.")
+        };
+    }
+
+    private static Transform ResolveTransformTarget(UnityEngine.Object resolvedObject, string parameterName)
+    {
+        return resolvedObject switch
+        {
+            Transform transform => transform,
+            GameObject gameObject => gameObject.transform,
+            Component component => component.transform,
+            _ => throw new ArgumentException(
+                $"Parameter '{parameterName}' must reference a GameObject or Component with a Transform.")
+        };
     }
 
     private static GameObject ResolveGameObjectByHierarchyPath(string rawPath, string? rawScenePath, string parameterName)
@@ -1289,6 +1475,89 @@ internal sealed class UnityMcpClient : IDisposable
             var child = transform.GetChild(childIndex);
             CollectHierarchyPathMatches(child, normalizedPath, allMatches, activeMatches, activeSceneHandle);
         }
+    }
+
+    private static Type ResolveComponentType(string typeName)
+    {
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+            throw new ArgumentException("Parameter 'typeName' cannot be empty.");
+        }
+
+        var trimmedTypeName = typeName.Trim();
+
+        var directType = Type.GetType(trimmedTypeName, throwOnError: false);
+        if (directType != null)
+        {
+            ValidateResolvedComponentType(directType, trimmedTypeName);
+            return directType;
+        }
+
+        var fullNameMatches = new List<Type>();
+        var shortNameMatches = new List<Type>();
+        foreach (var candidateType in TypeCache.GetTypesDerivedFrom<Component>())
+        {
+            if (candidateType == null || !IsSupportedAddComponentType(candidateType))
+            {
+                continue;
+            }
+
+            if (string.Equals(candidateType.FullName, trimmedTypeName, StringComparison.Ordinal))
+            {
+                fullNameMatches.Add(candidateType);
+            }
+
+            if (string.Equals(candidateType.Name, trimmedTypeName, StringComparison.Ordinal))
+            {
+                shortNameMatches.Add(candidateType);
+            }
+        }
+
+        if (fullNameMatches.Count == 1)
+        {
+            return fullNameMatches[0];
+        }
+
+        if (fullNameMatches.Count > 1)
+        {
+            throw new ArgumentException(
+                $"Component type '{trimmedTypeName}' is ambiguous. Use an assembly-qualified type name.");
+        }
+
+        if (shortNameMatches.Count == 1)
+        {
+            return shortNameMatches[0];
+        }
+
+        if (shortNameMatches.Count > 1)
+        {
+            var names = new List<string>(shortNameMatches.Count);
+            foreach (var match in shortNameMatches)
+            {
+                names.Add(match.FullName ?? match.Name);
+            }
+
+            throw new ArgumentException(
+                $"Component type '{trimmedTypeName}' is ambiguous. Matches: {string.Join(", ", names)}");
+        }
+
+        throw new ArgumentException($"Component type '{trimmedTypeName}' was not found.");
+    }
+
+    private static void ValidateResolvedComponentType(Type componentType, string requestedTypeName)
+    {
+        if (!typeof(Component).IsAssignableFrom(componentType) || !IsSupportedAddComponentType(componentType))
+        {
+            throw new ArgumentException($"Component type '{requestedTypeName}' is not a supported Unity Component type.");
+        }
+    }
+
+    private static bool IsSupportedAddComponentType(Type componentType)
+    {
+        return componentType.IsClass &&
+               !componentType.IsAbstract &&
+               !componentType.IsGenericTypeDefinition &&
+               typeof(Component).IsAssignableFrom(componentType);
     }
 
     private static UnityEngine.Object? TryResolveObjectByEntityId(int instanceId)
@@ -1453,29 +1722,34 @@ internal sealed class UnityMcpClient : IDisposable
 
     private static Vector3 ParsePosition(JToken positionToken)
     {
-        if (positionToken is not JArray positionArray)
+        return ParseVector3Parameter(positionToken, "position");
+    }
+
+    private static Vector3 ParseVector3Parameter(JToken token, string parameterName)
+    {
+        if (token is not JArray array)
         {
-            throw new ArgumentException("Parameter 'position' must be an array [x, y, z].");
+            throw new ArgumentException($"Parameter '{parameterName}' must be an array [x, y, z].");
         }
 
         var values = new float[3];
         var index = 0;
-        foreach (var item in positionArray)
+        foreach (var item in array)
         {
             if (index >= values.Length)
             {
-                throw new ArgumentException("Parameter 'position' must contain exactly 3 numeric values.");
+                throw new ArgumentException($"Parameter '{parameterName}' must contain exactly 3 numeric values.");
             }
 
             if (item.Type != JTokenType.Integer && item.Type != JTokenType.Float)
             {
-                throw new ArgumentException("Parameter 'position' must contain numeric values.");
+                throw new ArgumentException($"Parameter '{parameterName}' must contain numeric values.");
             }
 
             var itemValue = item.Value<float?>();
             if (!itemValue.HasValue)
             {
-                throw new ArgumentException("Parameter 'position' must contain numeric values.");
+                throw new ArgumentException($"Parameter '{parameterName}' must contain numeric values.");
             }
 
             values[index] = itemValue.Value;
@@ -1484,7 +1758,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (index != 3)
         {
-            throw new ArgumentException("Parameter 'position' must contain exactly 3 numeric values.");
+            throw new ArgumentException($"Parameter '{parameterName}' must contain exactly 3 numeric values.");
         }
 
         return new Vector3(values[0], values[1], values[2]);
@@ -1583,6 +1857,37 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
+    private static object CreateTransformSnapshot(Transform transform)
+    {
+        return new
+        {
+            worldPosition = ToVectorArray(transform.position),
+            localPosition = ToVectorArray(transform.localPosition),
+            worldRotationEuler = ToVectorArray(transform.rotation.eulerAngles),
+            localRotationEuler = ToVectorArray(transform.localRotation.eulerAngles),
+            localScale = ToVectorArray(transform.localScale)
+        };
+    }
+
+    private static object CreateComponentSummary(Component component)
+    {
+        var componentType = component.GetType();
+        var behaviour = component as Behaviour;
+        var gameObject = component.gameObject;
+
+        return new
+        {
+            instanceId = component.GetInstanceID(),
+            name = component.name,
+            typeName = componentType.Name,
+            fullTypeName = componentType.FullName,
+            isBehaviour = behaviour != null,
+            enabled = behaviour != null ? behaviour.enabled : (bool?)null,
+            gameObjectInstanceId = gameObject.GetInstanceID(),
+            gameObjectName = gameObject.name
+        };
+    }
+
     private static object CreateObjectSummary(UnityEngine.Object unityObject)
     {
         var unityType = unityObject.GetType();
@@ -1631,6 +1936,11 @@ internal sealed class UnityMcpClient : IDisposable
             activeInHierarchy,
             componentType
         };
+    }
+
+    private static float[] ToVectorArray(Vector3 value)
+    {
+        return new[] { value.x, value.y, value.z };
     }
 
     private static EditorStateSnapshot BuildEditorStateResult()

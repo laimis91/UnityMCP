@@ -122,6 +122,42 @@
     - `scenePath`
     - `count`
     - `items[]` (object summaries)
+- `scene.getComponents`
+  - Returns component metadata for a target `GameObject` (or a `Component` target's owner `GameObject`).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `componentCount`
+    - `missingComponentCount`
+    - `items[]` (component summaries)
+- `scene.setTransform`
+  - Mutates basic transform properties on a `GameObject`/`Component` target.
+  - Params:
+    - `instanceId` (required, integer)
+    - `position` (optional `[x,y,z]`, world-space)
+    - `localPosition` (optional `[x,y,z]`)
+    - `rotationEuler` (optional `[x,y,z]`, world-space euler)
+    - `localRotationEuler` (optional `[x,y,z]`)
+    - `localScale` (optional `[x,y,z]`)
+  - Notes:
+    - At least one transform field is required.
+    - `position` and `localPosition` cannot be set together.
+    - `rotationEuler` and `localRotationEuler` cannot be set together.
+  - Returns:
+    - `instanceId`
+    - `target`
+    - `transform` (world/local transform snapshot)
+    - `applied`
+- `scene.addComponent`
+  - Adds a component to a `GameObject` (or a `Component` target's owner `GameObject`) by type name.
+  - Params:
+    - `instanceId` (required, integer)
+    - `typeName` (required, string; short/full/assembly-qualified)
+  - Returns:
+    - `target`
+    - `addedComponent`
+    - `componentCount`
 - `scene.setSelection`
   - Replaces the current Unity Editor selection with the specified `instanceId`s.
   - Params:
@@ -555,6 +591,48 @@ Request:
   "params": {
     "path": "Cube/Main Camera",
     "scenePath": "Assets/_Game/Scenes/TestScene.unity"
+  }
+}
+```
+
+## `scene.getComponents` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "scene.getComponents",
+  "params": {
+    "instanceId": 45444
+  }
+}
+```
+
+## `scene.setTransform` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 22,
+  "method": "scene.setTransform",
+  "params": {
+    "instanceId": 45444,
+    "position": [7.24, 10.02, -7.99],
+    "localScale": [1, 1, 1]
+  }
+}
+```
+
+## `scene.addComponent` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 23,
+  "method": "scene.addComponent",
+  "params": {
+    "instanceId": 45458,
+    "typeName": "BoxCollider"
   }
 }
 ```

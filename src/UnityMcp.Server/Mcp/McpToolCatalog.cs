@@ -197,6 +197,67 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "scene.getComponents",
+                "Returns component metadata for the target GameObject (or a Component's owner GameObject).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a GameObject or Component."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.setTransform",
+                "Mutates basic transform properties on a GameObject/Component target.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a GameObject or Component."
+                        },
+                        ["position"] = Vector3Schema("Optional world-space position [x,y,z]."),
+                        ["localPosition"] = Vector3Schema("Optional local-space position [x,y,z]."),
+                        ["rotationEuler"] = Vector3Schema("Optional world-space euler rotation [x,y,z]."),
+                        ["localRotationEuler"] = Vector3Schema("Optional local-space euler rotation [x,y,z]."),
+                        ["localScale"] = Vector3Schema("Optional local-scale [x,y,z].")
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.addComponent",
+                "Adds a Component to a GameObject (or a Component target's owner GameObject) by type name.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "typeName"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a GameObject or Component."
+                        },
+                        ["typeName"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Component type name (short name, full name, or assembly-qualified name if needed)."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.setSelection",
                 "Replaces the Unity Editor selection with the specified object instance ids.",
                 new JsonObject
@@ -430,6 +491,21 @@ public sealed class McpToolCatalog
         {
             ["type"] = "object",
             ["additionalProperties"] = false
+        };
+    }
+
+    private static JsonObject Vector3Schema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "array",
+            ["description"] = description,
+            ["minItems"] = 3,
+            ["maxItems"] = 3,
+            ["items"] = new JsonObject
+            {
+                ["type"] = "number"
+            }
         };
     }
 }

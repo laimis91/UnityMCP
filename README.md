@@ -25,6 +25,14 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `scene.selectObject`
   - `scene.selectByPath`
   - `scene.findByPath`
+  - `camera.getSettings`
+  - `camera.setSettings`
+  - `light.getSettings`
+  - `light.setSettings`
+  - `rigidbody.getSettings`
+  - `rigidbody.setSettings`
+  - `collider.getSettings`
+  - `collider.setSettings`
   - `scene.getComponents`
   - `scene.destroyObject`
   - `scene.getComponentProperties`
@@ -171,6 +179,14 @@ Default endpoint:
    - `scene.selectObject`
    - `scene.selectByPath`
    - `scene.findByPath`
+   - `camera.getSettings`
+   - `camera.setSettings`
+   - `light.getSettings`
+   - `light.setSettings`
+   - `rigidbody.getSettings`
+   - `rigidbody.setSettings`
+   - `collider.getSettings`
+   - `collider.setSettings`
    - `scene.getComponents`
    - `scene.destroyObject`
    - `scene.getComponentProperties`
@@ -198,6 +214,8 @@ Selection tool note:
 - `scene.getComponents` / `scene.getComponentProperties` / `scene.setComponentProperties` / `scene.setTransform` / `scene.addComponent` enable basic component inspection and safe scene-object edits from MCP.
 - `scene.destroyObject` deletes a scene `GameObject` or `Component` with Undo support (destroying `Transform` directly is rejected).
 - Component property read/write uses a constrained serialized-property MVP (common simple types only; unsupported/non-editable properties fail clearly).
+- `camera.*` / `light.*` / `rigidbody.*` / `collider.*` provide direct API convenience wrappers (`getSettings` / `setSettings`) so you do not need serialized `m_*` field names for common workflows.
+- `collider.setSettings` currently supports BoxCollider-specific `center` / `size` fields in addition to base collider fields.
 - `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
 
 Example MCP `initialize` request:

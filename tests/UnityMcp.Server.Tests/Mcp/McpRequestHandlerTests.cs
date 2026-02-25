@@ -63,6 +63,14 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.selectByPath");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.findByPath");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "camera.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "camera.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "light.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "light.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.destroyObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponentProperties");
@@ -903,6 +911,257 @@ public sealed class McpRequestHandlerTests
             Assert.Equal("scene.findByPath", forwarded.RootElement.GetProperty("method").GetString());
             Assert.Equal("Cube/Main Camera", forwarded.RootElement.GetProperty("params").GetProperty("path").GetString());
             Assert.Equal("Assets/_Game/Scenes/TestScene.unity", forwarded.RootElement.GetProperty("params").GetProperty("scenePath").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsCameraGetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"fieldOfView":60}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"camera-get-1","method":"tools/call","params":{"name":"camera.getSettings","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("camera.getSettings", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsCameraSetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"fieldOfView":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"camera-set-1","method":"tools/call","params":{"name":"camera.setSettings","arguments":{"instanceId":45444,"fieldOfView":55,"nearClipPlane":0.2}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("camera.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(55, forwardedParams.GetProperty("fieldOfView").GetInt32());
+            Assert.Equal(0.2, forwardedParams.GetProperty("nearClipPlane").GetDouble(), 3);
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsLightGetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"intensity":1.0}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"light-get-1","method":"tools/call","params":{"name":"light.getSettings","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("light.getSettings", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsLightSetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"intensity":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"light-set-1","method":"tools/call","params":{"name":"light.setSettings","arguments":{"instanceId":45444,"intensity":2.5,"range":15}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("light.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(2.5, forwardedParams.GetProperty("intensity").GetDouble(), 3);
+            Assert.Equal(15, forwardedParams.GetProperty("range").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsRigidbodyGetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"mass":1.0}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"rb-get-1","method":"tools/call","params":{"name":"rigidbody.getSettings","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("rigidbody.getSettings", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsRigidbodySetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"isKinematic":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"rb-set-1","method":"tools/call","params":{"name":"rigidbody.setSettings","arguments":{"instanceId":45444,"isKinematic":true,"useGravity":false}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("rigidbody.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.True(forwardedParams.GetProperty("isKinematic").GetBoolean());
+            Assert.False(forwardedParams.GetProperty("useGravity").GetBoolean());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsColliderGetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"isTrigger":false}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"col-get-1","method":"tools/call","params":{"name":"collider.getSettings","arguments":{"instanceId":45444}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("collider.getSettings", forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsColliderSetSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"isTrigger":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"col-set-1","method":"tools/call","params":{"name":"collider.setSettings","arguments":{"instanceId":45444,"isTrigger":true}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("collider.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.True(forwardedParams.GetProperty("isTrigger").GetBoolean());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

@@ -122,6 +122,82 @@
     - `scenePath`
     - `count`
     - `items[]` (object summaries)
+- `camera.getSettings`
+  - Returns common Camera settings for a `Camera` component target (or a `GameObject` with a single Camera).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+- `camera.setSettings`
+  - Mutates common Camera settings using direct Unity `Camera` APIs.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `orthographic`, `fieldOfView`, `orthographicSize`, `nearClipPlane`, `farClipPlane`, `depth`, `clearFlags`, `backgroundColor`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+- `light.getSettings`
+  - Returns common Light settings for a `Light` component target (or a `GameObject` with a single Light).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+- `light.setSettings`
+  - Mutates common Light settings using direct Unity `Light` APIs.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `type`, `color`, `intensity`, `range`, `spotAngle`, `shadows`
+  - Notes:
+    - `spotAngle` is only valid for Spot lights.
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+- `rigidbody.getSettings`
+  - Returns common 3D `Rigidbody` settings for a `Rigidbody` component target (or a `GameObject` with a single `Rigidbody`).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+- `rigidbody.setSettings`
+  - Mutates common 3D `Rigidbody` settings using direct Unity `Rigidbody` APIs.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `mass`, `useGravity`, `isKinematic`, `detectCollisions`, `constraints`, `interpolation`, `collisionDetectionMode`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+- `collider.getSettings`
+  - Returns common `Collider` settings for a `Collider` component target (or a `GameObject` with a single `Collider`).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+- `collider.setSettings`
+  - Mutates common `Collider` settings (with BoxCollider-specific `center` / `size` in the MVP).
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `isTrigger`, `contactOffset`, `center`, `size`
+  - Notes:
+    - `center` and `size` are only supported for `BoxCollider` in the MVP.
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
 - `scene.getComponents`
   - Returns component metadata for a target `GameObject` (or a `Component` target's owner `GameObject`).
   - Params:
@@ -629,6 +705,119 @@ Request:
   "params": {
     "path": "Cube/Main Camera",
     "scenePath": "Assets/_Game/Scenes/TestScene.unity"
+  }
+}
+```
+
+## `camera.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 19,
+  "method": "camera.getSettings",
+  "params": {
+    "instanceId": 45444
+  }
+}
+```
+
+## `camera.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "camera.setSettings",
+  "params": {
+    "instanceId": 45444,
+    "fieldOfView": 55,
+    "nearClipPlane": 0.2
+  }
+}
+```
+
+## `light.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "light.getSettings",
+  "params": {
+    "instanceId": 60001
+  }
+}
+```
+
+## `light.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "light.setSettings",
+  "params": {
+    "instanceId": 60001,
+    "intensity": 2.5,
+    "range": 15
+  }
+}
+```
+
+## `rigidbody.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "rigidbody.getSettings",
+  "params": {
+    "instanceId": 70001
+  }
+}
+```
+
+## `rigidbody.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "rigidbody.setSettings",
+  "params": {
+    "instanceId": 70001,
+    "isKinematic": true,
+    "useGravity": false
+  }
+}
+```
+
+## `collider.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "collider.getSettings",
+  "params": {
+    "instanceId": 70002
+  }
+}
+```
+
+## `collider.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "collider.setSettings",
+  "params": {
+    "instanceId": 70002,
+    "isTrigger": true,
+    "center": [0, 0.5, 0],
+    "size": [1, 2, 1]
   }
 }
 ```

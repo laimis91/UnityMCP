@@ -197,6 +197,142 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "camera.getSettings",
+                "Returns common Camera settings for a Camera component target (or a GameObject with a single Camera).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Unity instance id of a Camera component or a GameObject with a single Camera."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "camera.setSettings",
+                "Mutates common Camera settings using direct Unity Camera APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["orthographic"] = new JsonObject { ["type"] = "boolean" },
+                        ["fieldOfView"] = new JsonObject { ["type"] = "number", ["description"] = "Perspective FOV in degrees (0-179)." },
+                        ["orthographicSize"] = new JsonObject { ["type"] = "number", ["description"] = "Orthographic half-size (>0)." },
+                        ["nearClipPlane"] = new JsonObject { ["type"] = "number", ["description"] = "Near clip plane (>0)." },
+                        ["farClipPlane"] = new JsonObject { ["type"] = "number", ["description"] = "Far clip plane (> nearClipPlane)." },
+                        ["clearFlags"] = EnumLikeSchema("Camera clear flags as enum name or integer value."),
+                        ["backgroundColor"] = ColorSchema("RGBA color array [r,g,b,a]."),
+                        ["depth"] = new JsonObject { ["type"] = "number" }
+                    }
+                }),
+            new McpToolDefinition(
+                "light.getSettings",
+                "Returns common Light settings for a Light component target (or a GameObject with a single Light).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" }
+                    }
+                }),
+            new McpToolDefinition(
+                "light.setSettings",
+                "Mutates common Light settings using direct Unity Light APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["type"] = EnumLikeSchema("Light type as enum name or integer value."),
+                        ["color"] = ColorSchema("RGBA color array [r,g,b,a]."),
+                        ["intensity"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["range"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["spotAngle"] = new JsonObject { ["type"] = "number", ["description"] = "Spot angle in degrees (only valid for Spot lights)." },
+                        ["shadows"] = EnumLikeSchema("Light shadows mode as enum name or integer value.")
+                    }
+                }),
+            new McpToolDefinition(
+                "rigidbody.getSettings",
+                "Returns common Rigidbody (3D) settings for a Rigidbody component target (or a GameObject with a single Rigidbody).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" }
+                    }
+                }),
+            new McpToolDefinition(
+                "rigidbody.setSettings",
+                "Mutates common Rigidbody (3D) settings using direct Unity Rigidbody APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["mass"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["useGravity"] = new JsonObject { ["type"] = "boolean" },
+                        ["isKinematic"] = new JsonObject { ["type"] = "boolean" },
+                        ["detectCollisions"] = new JsonObject { ["type"] = "boolean" },
+                        ["constraints"] = EnumLikeSchema("RigidbodyConstraints enum name or integer flags value."),
+                        ["interpolation"] = EnumLikeSchema("RigidbodyInterpolation enum name or integer value."),
+                        ["collisionDetectionMode"] = EnumLikeSchema("CollisionDetectionMode enum name or integer value.")
+                    }
+                }),
+            new McpToolDefinition(
+                "collider.getSettings",
+                "Returns common Collider settings for a Collider component target (or a GameObject with a single Collider).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" }
+                    }
+                }),
+            new McpToolDefinition(
+                "collider.setSettings",
+                "Mutates common Collider settings (with BoxCollider-specific fields in MVP).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["isTrigger"] = new JsonObject { ["type"] = "boolean" },
+                        ["contactOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["center"] = Vector3Schema("BoxCollider center [x,y,z] (BoxCollider only in MVP)."),
+                        ["size"] = Vector3Schema("BoxCollider size [x,y,z] (BoxCollider only in MVP).")
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.getComponents",
                 "Returns component metadata for the target GameObject (or a Component's owner GameObject).",
                 new JsonObject
@@ -561,6 +697,40 @@ public sealed class McpToolCatalog
             ["items"] = new JsonObject
             {
                 ["type"] = "number"
+            }
+        };
+    }
+
+    private static JsonObject ColorSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "array",
+            ["description"] = description,
+            ["minItems"] = 4,
+            ["maxItems"] = 4,
+            ["items"] = new JsonObject
+            {
+                ["type"] = "number"
+            }
+        };
+    }
+
+    private static JsonObject EnumLikeSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["description"] = description,
+            ["oneOf"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["type"] = "string"
+                },
+                new JsonObject
+                {
+                    ["type"] = "integer"
+                }
             }
         };
     }

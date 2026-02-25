@@ -192,6 +192,14 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.selectObject" => BuildSelectObjectResponse(idToken, root),
                 "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
                 "scene.findByPath" => BuildFindByPathResponse(idToken, root),
+                "camera.getSettings" => BuildGetCameraSettingsResponse(idToken, root),
+                "camera.setSettings" => BuildSetCameraSettingsResponse(idToken, root),
+                "light.getSettings" => BuildGetLightSettingsResponse(idToken, root),
+                "light.setSettings" => BuildSetLightSettingsResponse(idToken, root),
+                "rigidbody.getSettings" => BuildGetRigidbodySettingsResponse(idToken, root),
+                "rigidbody.setSettings" => BuildSetRigidbodySettingsResponse(idToken, root),
+                "collider.getSettings" => BuildGetColliderSettingsResponse(idToken, root),
+                "collider.setSettings" => BuildSetColliderSettingsResponse(idToken, root),
                 "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
                 "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
                 "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
@@ -383,6 +391,489 @@ internal sealed class UnityMcpClient : IDisposable
             scenePath = normalizedScenePath,
             count = items.Count,
             items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCameraSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "camera.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var camera = ResolveComponentOfTypeTarget<Camera>(resolvedObject, "instanceId", "Camera");
+
+        var result = new
+        {
+            target = CreateObjectSummary(camera.gameObject),
+            component = CreateComponentSummary(camera),
+            settings = CreateCameraSettingsSnapshot(camera)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCameraSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "camera.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var camera = ResolveComponentOfTypeTarget<Camera>(resolvedObject, "instanceId", "Camera");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var orthographic = ParseOptionalBooleanValueParameter(paramsObject, "orthographic");
+        var fieldOfView = ParseOptionalFloatParameter(paramsObject, "fieldOfView");
+        var orthographicSize = ParseOptionalFloatParameter(paramsObject, "orthographicSize");
+        var nearClipPlane = ParseOptionalFloatParameter(paramsObject, "nearClipPlane");
+        var farClipPlane = ParseOptionalFloatParameter(paramsObject, "farClipPlane");
+        var depth = ParseOptionalFloatParameter(paramsObject, "depth");
+        var clearFlags = ParseOptionalEnumParameter<CameraClearFlags>(paramsObject, "clearFlags");
+        var backgroundColor = ParseOptionalColorParameter(paramsObject, "backgroundColor");
+
+        if (!enabled.HasValue &&
+            !orthographic.HasValue &&
+            !fieldOfView.HasValue &&
+            !orthographicSize.HasValue &&
+            !nearClipPlane.HasValue &&
+            !farClipPlane.HasValue &&
+            !depth.HasValue &&
+            !clearFlags.HasValue &&
+            !backgroundColor.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one camera setting must be provided: enabled, orthographic, fieldOfView, orthographicSize, nearClipPlane, farClipPlane, depth, clearFlags, or backgroundColor.");
+        }
+
+        if (fieldOfView.HasValue && (fieldOfView.Value <= 0f || fieldOfView.Value >= 180f))
+        {
+            throw new ArgumentException("Parameter 'fieldOfView' must be greater than 0 and less than 180 degrees.");
+        }
+
+        if (orthographicSize.HasValue && orthographicSize.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'orthographicSize' must be greater than 0.");
+        }
+
+        var effectiveNear = nearClipPlane ?? camera.nearClipPlane;
+        var effectiveFar = farClipPlane ?? camera.farClipPlane;
+        if (effectiveNear <= 0f)
+        {
+            throw new ArgumentException("Parameter 'nearClipPlane' must be greater than 0.");
+        }
+
+        if (effectiveFar <= effectiveNear)
+        {
+            throw new ArgumentException("Parameter 'farClipPlane' must be greater than 'nearClipPlane'.");
+        }
+
+        Undo.RecordObject(camera, "UnityMCP Set Camera Settings");
+
+        if (enabled.HasValue)
+        {
+            camera.enabled = enabled.Value;
+        }
+
+        if (orthographic.HasValue)
+        {
+            camera.orthographic = orthographic.Value;
+        }
+
+        if (fieldOfView.HasValue)
+        {
+            camera.fieldOfView = fieldOfView.Value;
+        }
+
+        if (orthographicSize.HasValue)
+        {
+            camera.orthographicSize = orthographicSize.Value;
+        }
+
+        if (nearClipPlane.HasValue)
+        {
+            camera.nearClipPlane = nearClipPlane.Value;
+        }
+
+        if (farClipPlane.HasValue)
+        {
+            camera.farClipPlane = farClipPlane.Value;
+        }
+
+        if (depth.HasValue)
+        {
+            camera.depth = depth.Value;
+        }
+
+        if (clearFlags.HasValue)
+        {
+            camera.clearFlags = clearFlags.Value;
+        }
+
+        if (backgroundColor.HasValue)
+        {
+            camera.backgroundColor = backgroundColor.Value;
+        }
+
+        EditorUtility.SetDirty(camera);
+
+        var result = new
+        {
+            target = CreateObjectSummary(camera.gameObject),
+            component = CreateComponentSummary(camera),
+            settings = CreateCameraSettingsSnapshot(camera),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                orthographic = orthographic.HasValue,
+                fieldOfView = fieldOfView.HasValue,
+                orthographicSize = orthographicSize.HasValue,
+                nearClipPlane = nearClipPlane.HasValue,
+                farClipPlane = farClipPlane.HasValue,
+                depth = depth.HasValue,
+                clearFlags = clearFlags.HasValue,
+                backgroundColor = backgroundColor.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetLightSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "light.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var light = ResolveComponentOfTypeTarget<Light>(resolvedObject, "instanceId", "Light");
+
+        var result = new
+        {
+            target = CreateObjectSummary(light.gameObject),
+            component = CreateComponentSummary(light),
+            settings = CreateLightSettingsSnapshot(light)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetLightSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "light.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var light = ResolveComponentOfTypeTarget<Light>(resolvedObject, "instanceId", "Light");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var type = ParseOptionalEnumParameter<LightType>(paramsObject, "type");
+        var color = ParseOptionalColorParameter(paramsObject, "color");
+        var intensity = ParseOptionalFloatParameter(paramsObject, "intensity");
+        var range = ParseOptionalFloatParameter(paramsObject, "range");
+        var spotAngle = ParseOptionalFloatParameter(paramsObject, "spotAngle");
+        var shadows = ParseOptionalEnumParameter<LightShadows>(paramsObject, "shadows");
+
+        if (!enabled.HasValue &&
+            !type.HasValue &&
+            !color.HasValue &&
+            !intensity.HasValue &&
+            !range.HasValue &&
+            !spotAngle.HasValue &&
+            !shadows.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one light setting must be provided: enabled, type, color, intensity, range, spotAngle, or shadows.");
+        }
+
+        if (intensity.HasValue && intensity.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'intensity' must be greater than or equal to 0.");
+        }
+
+        if (range.HasValue && range.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'range' must be greater than 0.");
+        }
+
+        if (spotAngle.HasValue)
+        {
+            if (spotAngle.Value <= 0f || spotAngle.Value >= 180f)
+            {
+                throw new ArgumentException("Parameter 'spotAngle' must be greater than 0 and less than 180 degrees.");
+            }
+
+            var effectiveType = type ?? light.type;
+            if (effectiveType != LightType.Spot)
+            {
+                throw new ArgumentException("Parameter 'spotAngle' is only valid for Spot lights.");
+            }
+        }
+
+        Undo.RecordObject(light, "UnityMCP Set Light Settings");
+
+        if (enabled.HasValue)
+        {
+            light.enabled = enabled.Value;
+        }
+
+        if (type.HasValue)
+        {
+            light.type = type.Value;
+        }
+
+        if (color.HasValue)
+        {
+            light.color = color.Value;
+        }
+
+        if (intensity.HasValue)
+        {
+            light.intensity = intensity.Value;
+        }
+
+        if (range.HasValue)
+        {
+            light.range = range.Value;
+        }
+
+        if (spotAngle.HasValue)
+        {
+            light.spotAngle = spotAngle.Value;
+        }
+
+        if (shadows.HasValue)
+        {
+            light.shadows = shadows.Value;
+        }
+
+        EditorUtility.SetDirty(light);
+
+        var result = new
+        {
+            target = CreateObjectSummary(light.gameObject),
+            component = CreateComponentSummary(light),
+            settings = CreateLightSettingsSnapshot(light),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                type = type.HasValue,
+                color = color.HasValue,
+                intensity = intensity.HasValue,
+                range = range.HasValue,
+                spotAngle = spotAngle.HasValue,
+                shadows = shadows.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetRigidbodySettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rigidbody.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var rigidbody = ResolveComponentOfTypeTarget<Rigidbody>(resolvedObject, "instanceId", "Rigidbody");
+
+        var result = new
+        {
+            target = CreateObjectSummary(rigidbody.gameObject),
+            component = CreateComponentSummary(rigidbody),
+            settings = CreateRigidbodySettingsSnapshot(rigidbody)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetRigidbodySettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rigidbody.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var rigidbody = ResolveComponentOfTypeTarget<Rigidbody>(resolvedObject, "instanceId", "Rigidbody");
+
+        var mass = ParseOptionalFloatParameter(paramsObject, "mass");
+        var useGravity = ParseOptionalBooleanValueParameter(paramsObject, "useGravity");
+        var isKinematic = ParseOptionalBooleanValueParameter(paramsObject, "isKinematic");
+        var detectCollisions = ParseOptionalBooleanValueParameter(paramsObject, "detectCollisions");
+        var constraints = ParseOptionalEnumParameter<RigidbodyConstraints>(paramsObject, "constraints");
+        var interpolation = ParseOptionalEnumParameter<RigidbodyInterpolation>(paramsObject, "interpolation");
+        var collisionDetectionMode = ParseOptionalEnumParameter<CollisionDetectionMode>(paramsObject, "collisionDetectionMode");
+
+        if (!mass.HasValue &&
+            !useGravity.HasValue &&
+            !isKinematic.HasValue &&
+            !detectCollisions.HasValue &&
+            !constraints.HasValue &&
+            !interpolation.HasValue &&
+            !collisionDetectionMode.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one rigidbody setting must be provided: mass, useGravity, isKinematic, detectCollisions, constraints, interpolation, or collisionDetectionMode.");
+        }
+
+        if (mass.HasValue && mass.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'mass' must be greater than 0.");
+        }
+
+        Undo.RecordObject(rigidbody, "UnityMCP Set Rigidbody Settings");
+
+        if (mass.HasValue)
+        {
+            rigidbody.mass = mass.Value;
+        }
+
+        if (useGravity.HasValue)
+        {
+            rigidbody.useGravity = useGravity.Value;
+        }
+
+        if (isKinematic.HasValue)
+        {
+            rigidbody.isKinematic = isKinematic.Value;
+        }
+
+        if (detectCollisions.HasValue)
+        {
+            rigidbody.detectCollisions = detectCollisions.Value;
+        }
+
+        if (constraints.HasValue)
+        {
+            rigidbody.constraints = constraints.Value;
+        }
+
+        if (interpolation.HasValue)
+        {
+            rigidbody.interpolation = interpolation.Value;
+        }
+
+        if (collisionDetectionMode.HasValue)
+        {
+            rigidbody.collisionDetectionMode = collisionDetectionMode.Value;
+        }
+
+        EditorUtility.SetDirty(rigidbody);
+
+        var result = new
+        {
+            target = CreateObjectSummary(rigidbody.gameObject),
+            component = CreateComponentSummary(rigidbody),
+            settings = CreateRigidbodySettingsSnapshot(rigidbody),
+            applied = new
+            {
+                mass = mass.HasValue,
+                useGravity = useGravity.HasValue,
+                isKinematic = isKinematic.HasValue,
+                detectCollisions = detectCollisions.HasValue,
+                constraints = constraints.HasValue,
+                interpolation = interpolation.HasValue,
+                collisionDetectionMode = collisionDetectionMode.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "collider.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<Collider>(resolvedObject, "instanceId", "Collider");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "collider.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<Collider>(resolvedObject, "instanceId", "Collider");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var contactOffset = ParseOptionalFloatParameter(paramsObject, "contactOffset");
+        var center = ParseOptionalVector3Parameter(paramsObject, "center");
+        var size = ParseOptionalVector3Parameter(paramsObject, "size");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !contactOffset.HasValue &&
+            !center.HasValue &&
+            !size.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one collider setting must be provided: enabled, isTrigger, contactOffset, center, or size.");
+        }
+
+        if (contactOffset.HasValue && contactOffset.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'contactOffset' must be greater than or equal to 0.");
+        }
+
+        if (size.HasValue &&
+            (size.Value.x <= 0f || size.Value.y <= 0f || size.Value.z <= 0f))
+        {
+            throw new ArgumentException("Parameter 'size' must contain positive values for all BoxCollider axes.");
+        }
+
+        var boxCollider = collider as BoxCollider;
+        if ((center.HasValue || size.HasValue) && boxCollider == null)
+        {
+            throw new ArgumentException("Parameters 'center' and 'size' are only supported for BoxCollider in the MVP.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set Collider Settings");
+
+        if (enabled.HasValue)
+        {
+            collider.enabled = enabled.Value;
+        }
+
+        if (isTrigger.HasValue)
+        {
+            collider.isTrigger = isTrigger.Value;
+        }
+
+        if (contactOffset.HasValue)
+        {
+            collider.contactOffset = contactOffset.Value;
+        }
+
+        if (boxCollider != null)
+        {
+            if (center.HasValue)
+            {
+                boxCollider.center = center.Value;
+            }
+
+            if (size.HasValue)
+            {
+                boxCollider.size = size.Value;
+            }
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateColliderSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                contactOffset = contactOffset.HasValue,
+                center = center.HasValue,
+                size = size.HasValue
+            }
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -1431,6 +1922,103 @@ internal sealed class UnityMcpClient : IDisposable
         return ParseVector3Parameter(token, parameterName);
     }
 
+    private static Color? ParseOptionalColorParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        return ParseColorToken(token, parameterName);
+    }
+
+    private static float? ParseOptionalFloatParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        if (token.Type != JTokenType.Integer && token.Type != JTokenType.Float)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be numeric.");
+        }
+
+        var value = token.Value<float?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be numeric.");
+        }
+
+        return value.Value;
+    }
+
+    private static bool? ParseOptionalBooleanValueParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        if (token.Type != JTokenType.Boolean)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be a boolean.");
+        }
+
+        var value = token.Value<bool?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be a boolean.");
+        }
+
+        return value.Value;
+    }
+
+    private static TEnum? ParseOptionalEnumParameter<TEnum>(JObject paramsObject, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        return ParseEnumToken<TEnum>(token, parameterName);
+    }
+
+    private static TEnum ParseEnumToken<TEnum>(JToken token, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (token.Type == JTokenType.String)
+        {
+            var rawValue = token.Value<string>();
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                throw new ArgumentException($"Parameter '{parameterName}' cannot be empty.");
+            }
+
+            if (Enum.TryParse<TEnum>(rawValue!.Trim(), ignoreCase: true, out var parsedFromName))
+            {
+                return parsedFromName;
+            }
+
+            throw new ArgumentException(
+                $"Parameter '{parameterName}' has invalid value '{rawValue}'. Expected a valid {typeof(TEnum).Name} enum name.");
+        }
+
+        if (token.Type == JTokenType.Integer)
+        {
+            var rawValue = token.Value<long?>();
+            if (!rawValue.HasValue)
+            {
+                throw new ArgumentException($"Parameter '{parameterName}' must be a string or integer enum value.");
+            }
+
+            return (TEnum)Enum.ToObject(typeof(TEnum), rawValue.Value);
+        }
+
+        throw new ArgumentException($"Parameter '{parameterName}' must be a string or integer enum value.");
+    }
+
     private static bool ParseOptionalBooleanParameter(JObject paramsObject, string parameterName, bool defaultValue = false)
     {
         if (!paramsObject.TryGetValue(parameterName, out var token))
@@ -1494,6 +2082,41 @@ internal sealed class UnityMcpClient : IDisposable
         }
 
         return component;
+    }
+
+    private static TComponent ResolveComponentOfTypeTarget<TComponent>(
+        UnityEngine.Object resolvedObject,
+        string parameterName,
+        string componentTypeName)
+        where TComponent : Component
+    {
+        if (resolvedObject is TComponent directComponent)
+        {
+            return directComponent;
+        }
+
+        GameObject gameObject = resolvedObject switch
+        {
+            GameObject go => go,
+            Component component => component.gameObject,
+            _ => throw new ArgumentException(
+                $"Parameter '{parameterName}' must reference a {componentTypeName} component or a GameObject containing one.")
+        };
+
+        var matches = gameObject.GetComponents<TComponent>();
+        if (matches.Length == 1)
+        {
+            return matches[0];
+        }
+
+        if (matches.Length == 0)
+        {
+            throw new ArgumentException(
+                $"Parameter '{parameterName}' must reference a {componentTypeName} component or a GameObject containing one.");
+        }
+
+        throw new ArgumentException(
+            $"Parameter '{parameterName}' resolves to GameObject '{gameObject.name}' with multiple {componentTypeName} components. Use the specific component instanceId.");
     }
 
     private static void ValidateDestroyableSceneObject(GameObject gameObject, string parameterName)
@@ -2422,6 +3045,95 @@ internal sealed class UnityMcpClient : IDisposable
             worldRotationEuler = ToVectorArray(transform.rotation.eulerAngles),
             localRotationEuler = ToVectorArray(transform.localRotation.eulerAngles),
             localScale = ToVectorArray(transform.localScale)
+        };
+    }
+
+    private static object CreateCameraSettingsSnapshot(Camera camera)
+    {
+        return new
+        {
+            enabled = camera.enabled,
+            orthographic = camera.orthographic,
+            fieldOfView = camera.fieldOfView,
+            orthographicSize = camera.orthographicSize,
+            nearClipPlane = camera.nearClipPlane,
+            farClipPlane = camera.farClipPlane,
+            depth = camera.depth,
+            clearFlags = CreateEnumSummary(camera.clearFlags),
+            backgroundColor = CreateColorArray(camera.backgroundColor),
+            cullingMask = camera.cullingMask,
+            allowHDR = camera.allowHDR,
+            allowMSAA = camera.allowMSAA,
+            allowDynamicResolution = camera.allowDynamicResolution
+        };
+    }
+
+    private static object CreateLightSettingsSnapshot(Light light)
+    {
+        return new
+        {
+            enabled = light.enabled,
+            type = CreateEnumSummary(light.type),
+            color = CreateColorArray(light.color),
+            intensity = light.intensity,
+            range = light.range,
+            spotAngle = light.spotAngle,
+            shadows = CreateEnumSummary(light.shadows)
+        };
+    }
+
+    private static object CreateRigidbodySettingsSnapshot(Rigidbody rigidbody)
+    {
+        return new
+        {
+            mass = rigidbody.mass,
+            useGravity = rigidbody.useGravity,
+            isKinematic = rigidbody.isKinematic,
+            detectCollisions = rigidbody.detectCollisions,
+            constraints = CreateEnumSummary(rigidbody.constraints),
+            interpolation = CreateEnumSummary(rigidbody.interpolation),
+            collisionDetectionMode = CreateEnumSummary(rigidbody.collisionDetectionMode)
+        };
+    }
+
+    private static object CreateColliderSettingsSnapshot(Collider collider)
+    {
+        var boxCollider = collider as BoxCollider;
+        var sharedMaterial = collider.sharedMaterial;
+        var attachedRigidbody = collider.attachedRigidbody;
+
+        object? subtype = null;
+        if (boxCollider != null)
+        {
+            subtype = new
+            {
+                kind = "BoxCollider",
+                center = CreateVector3Array(boxCollider.center),
+                size = CreateVector3Array(boxCollider.size)
+            };
+        }
+
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = sharedMaterial != null ? CreateObjectSummary(sharedMaterial) : null,
+            attachedRigidbody = attachedRigidbody != null ? CreateObjectSummary(attachedRigidbody) : null,
+            subtype
+        };
+    }
+
+    private static object CreateEnumSummary<TEnum>(TEnum value)
+        where TEnum : struct, Enum
+    {
+        return new
+        {
+            name = value.ToString(),
+            value = Convert.ToInt64(value)
         };
     }
 

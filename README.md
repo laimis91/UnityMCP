@@ -231,6 +231,14 @@ Selection tool note:
 - `scene.destroyObject` deletes a scene `GameObject` or `Component` with Undo support (destroying `Transform` directly is rejected).
 - Component property read/write uses a constrained serialized-property MVP (common simple types only; unsupported/non-editable properties fail clearly).
 - `camera.*` / `light.*` / `rigidbody.*` / `collider.*` provide direct API convenience wrappers (`getSettings` / `setSettings`) so you do not need serialized `m_*` field names for common workflows.
+- 2D physics convenience wrappers are also available:
+  - `rigidbody2D.*`, `collider2D.*`
+  - `boxCollider2D.*`, `circleCollider2D.*`, `capsuleCollider2D.*`
+  - `polygonCollider2D.*`, `edgeCollider2D.*`, `compositeCollider2D.*`
+- 2D subtype wrappers use conservative MVP write support for complex-shape colliders:
+  - `polygonCollider2D.setSettings` currently supports base `Collider2D` fields only
+  - `edgeCollider2D.setSettings` adds `edgeRadius`
+  - `compositeCollider2D.setSettings` adds `geometryType` / `generationType` (safe subset)
 - `collider.setSettings` currently supports BoxCollider-specific `center` / `size` fields in addition to base collider fields.
 - Subtype collider wrappers are available for `BoxCollider`, `SphereCollider`, `CapsuleCollider`, and `MeshCollider`:
   - `boxCollider.*`, `sphereCollider.*`, `capsuleCollider.*`, `meshCollider.*`

@@ -69,16 +69,32 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "light.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "rigidbody2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "collider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "boxCollider.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "boxCollider.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "boxCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "boxCollider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "sphereCollider.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "sphereCollider.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "circleCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "circleCollider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "capsuleCollider.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "capsuleCollider.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "capsuleCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "capsuleCollider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "meshCollider.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "meshCollider.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "polygonCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "polygonCollider2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "edgeCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "edgeCollider2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "compositeCollider2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "compositeCollider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.destroyObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponentProperties");
@@ -1421,6 +1437,141 @@ public sealed class McpRequestHandlerTests
             var forwardedParams = forwarded.RootElement.GetProperty("params");
             Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
             Assert.True(forwardedParams.GetProperty("convex").GetBoolean());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":"rb2d-get-1","method":"tools/call","params":{"name":"rigidbody2D.getSettings","arguments":{"instanceId":45444}}}""", "rigidbody2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"col2d-get-1","method":"tools/call","params":{"name":"collider2D.getSettings","arguments":{"instanceId":45444}}}""", "collider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"box2d-get-1","method":"tools/call","params":{"name":"boxCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "boxCollider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"circle2d-get-1","method":"tools/call","params":{"name":"circleCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "circleCollider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"capsule2d-get-1","method":"tools/call","params":{"name":"capsuleCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "capsuleCollider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"poly2d-get-1","method":"tools/call","params":{"name":"polygonCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "polygonCollider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"edge2d-get-1","method":"tools/call","params":{"name":"edgeCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "edgeCollider2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"comp2d-get-1","method":"tools/call","params":{"name":"compositeCollider2D.getSettings","arguments":{"instanceId":45444}}}""", "compositeCollider2D.getSettings")]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargets2DPhysicsGetSettings(string requestJson, string expectedMethod)
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJsonValue, _, _) =>
+        {
+            forwardedRequestJson = requestJsonValue;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"ok":true}}}""");
+        });
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal(expectedMethod, forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":"rb2d-set-1","method":"tools/call","params":{"name":"rigidbody2D.setSettings","arguments":{"instanceId":45444,"simulated":true}}}""", "rigidbody2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"col2d-set-1","method":"tools/call","params":{"name":"collider2D.setSettings","arguments":{"instanceId":45444,"isTrigger":true}}}""", "collider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"box2d-set-1","method":"tools/call","params":{"name":"boxCollider2D.setSettings","arguments":{"instanceId":45444,"edgeRadius":0.1}}}""", "boxCollider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"circle2d-set-1","method":"tools/call","params":{"name":"circleCollider2D.setSettings","arguments":{"instanceId":45444,"radius":1.25}}}""", "circleCollider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"capsule2d-set-1","method":"tools/call","params":{"name":"capsuleCollider2D.setSettings","arguments":{"instanceId":45444,"direction":"Vertical"}}}""", "capsuleCollider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"poly2d-set-1","method":"tools/call","params":{"name":"polygonCollider2D.setSettings","arguments":{"instanceId":45444,"usedByEffector":false}}}""", "polygonCollider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"edge2d-set-1","method":"tools/call","params":{"name":"edgeCollider2D.setSettings","arguments":{"instanceId":45444,"edgeRadius":0.05}}}""", "edgeCollider2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"comp2d-set-1","method":"tools/call","params":{"name":"compositeCollider2D.setSettings","arguments":{"instanceId":45444,"geometryType":"Polygons"}}}""", "compositeCollider2D.setSettings")]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargets2DPhysicsSetSettings(string requestJson, string expectedMethod)
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJsonValue, _, _) =>
+        {
+            forwardedRequestJson = requestJsonValue;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"ok":true}}}""");
+        });
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal(expectedMethod, forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsBoxCollider2DSetSettings_WithVector2Fields()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"size":true,"offset":true,"edgeRadius":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"box2d-set-detailed-1","method":"tools/call","params":{"name":"boxCollider2D.setSettings","arguments":{"instanceId":45444,"offset":[0.25,0.5],"size":[2,3],"edgeRadius":0.1}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("boxCollider2D.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(2, forwardedParams.GetProperty("offset").GetArrayLength());
+            Assert.Equal(2, forwardedParams.GetProperty("size").GetArrayLength());
+            Assert.Equal(0.1, forwardedParams.GetProperty("edgeRadius").GetDouble(), 3);
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsCompositeCollider2DSetSettings_WithEnumFields()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"geometryType":true,"generationType":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"comp2d-set-detailed-1","method":"tools/call","params":{"name":"compositeCollider2D.setSettings","arguments":{"instanceId":45444,"geometryType":"Outlines","generationType":"Manual"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("compositeCollider2D.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal("Outlines", forwardedParams.GetProperty("geometryType").GetString());
+            Assert.Equal("Manual", forwardedParams.GetProperty("generationType").GetString());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

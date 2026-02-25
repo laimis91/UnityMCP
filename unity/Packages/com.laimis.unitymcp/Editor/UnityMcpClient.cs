@@ -198,16 +198,34 @@ internal sealed class UnityMcpClient : IDisposable
                 "light.setSettings" => BuildSetLightSettingsResponse(idToken, root),
                 "rigidbody.getSettings" => BuildGetRigidbodySettingsResponse(idToken, root),
                 "rigidbody.setSettings" => BuildSetRigidbodySettingsResponse(idToken, root),
+                "rigidbody2D.getSettings" => BuildGetRigidbody2DSettingsResponse(idToken, root),
+                "rigidbody2D.setSettings" => BuildSetRigidbody2DSettingsResponse(idToken, root),
                 "collider.getSettings" => BuildGetColliderSettingsResponse(idToken, root),
                 "collider.setSettings" => BuildSetColliderSettingsResponse(idToken, root),
+                "collider2D.getSettings" => BuildGetCollider2DSettingsResponse(idToken, root),
+                "collider2D.setSettings" => BuildSetCollider2DSettingsResponse(idToken, root),
                 "boxCollider.getSettings" => BuildGetBoxColliderSettingsResponse(idToken, root),
                 "boxCollider.setSettings" => BuildSetBoxColliderSettingsResponse(idToken, root),
+                "boxCollider2D.getSettings" => BuildGetBoxCollider2DSettingsResponse(idToken, root),
+                "boxCollider2D.setSettings" => BuildSetBoxCollider2DSettingsResponse(idToken, root),
                 "sphereCollider.getSettings" => BuildGetSphereColliderSettingsResponse(idToken, root),
                 "sphereCollider.setSettings" => BuildSetSphereColliderSettingsResponse(idToken, root),
+                "sphereCollider2D.getSettings" => BuildGetCircleCollider2DSettingsResponse(idToken, root),
+                "sphereCollider2D.setSettings" => BuildSetCircleCollider2DSettingsResponse(idToken, root),
+                "circleCollider2D.getSettings" => BuildGetCircleCollider2DSettingsResponse(idToken, root),
+                "circleCollider2D.setSettings" => BuildSetCircleCollider2DSettingsResponse(idToken, root),
                 "capsuleCollider.getSettings" => BuildGetCapsuleColliderSettingsResponse(idToken, root),
                 "capsuleCollider.setSettings" => BuildSetCapsuleColliderSettingsResponse(idToken, root),
+                "capsuleCollider2D.getSettings" => BuildGetCapsuleCollider2DSettingsResponse(idToken, root),
+                "capsuleCollider2D.setSettings" => BuildSetCapsuleCollider2DSettingsResponse(idToken, root),
                 "meshCollider.getSettings" => BuildGetMeshColliderSettingsResponse(idToken, root),
                 "meshCollider.setSettings" => BuildSetMeshColliderSettingsResponse(idToken, root),
+                "polygonCollider2D.getSettings" => BuildGetPolygonCollider2DSettingsResponse(idToken, root),
+                "polygonCollider2D.setSettings" => BuildSetPolygonCollider2DSettingsResponse(idToken, root),
+                "edgeCollider2D.getSettings" => BuildGetEdgeCollider2DSettingsResponse(idToken, root),
+                "edgeCollider2D.setSettings" => BuildSetEdgeCollider2DSettingsResponse(idToken, root),
+                "compositeCollider2D.getSettings" => BuildGetCompositeCollider2DSettingsResponse(idToken, root),
+                "compositeCollider2D.setSettings" => BuildSetCompositeCollider2DSettingsResponse(idToken, root),
                 "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
                 "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
                 "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
@@ -792,6 +810,653 @@ internal sealed class UnityMcpClient : IDisposable
             target = CreateObjectSummary(collider.gameObject),
             component = CreateComponentSummary(collider),
             settings = CreateColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetRigidbody2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rigidbody2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var rigidbody = ResolveComponentOfTypeTarget<Rigidbody2D>(resolvedObject, "instanceId", "Rigidbody2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(rigidbody.gameObject),
+            component = CreateComponentSummary(rigidbody),
+            settings = CreateRigidbody2DSettingsSnapshot(rigidbody)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetRigidbody2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rigidbody2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var rigidbody = ResolveComponentOfTypeTarget<Rigidbody2D>(resolvedObject, "instanceId", "Rigidbody2D");
+
+        var bodyType = ParseOptionalEnumParameter<RigidbodyType2D>(paramsObject, "bodyType");
+        var simulated = ParseOptionalBooleanValueParameter(paramsObject, "simulated");
+        var useAutoMass = ParseOptionalBooleanValueParameter(paramsObject, "useAutoMass");
+        var mass = ParseOptionalFloatParameter(paramsObject, "mass");
+        var gravityScale = ParseOptionalFloatParameter(paramsObject, "gravityScale");
+        var constraints = ParseOptionalEnumParameter<RigidbodyConstraints2D>(paramsObject, "constraints");
+        var interpolation = ParseOptionalEnumParameter<RigidbodyInterpolation2D>(paramsObject, "interpolation");
+        var collisionDetectionMode = ParseOptionalEnumParameter<CollisionDetectionMode2D>(paramsObject, "collisionDetectionMode");
+        var sleepMode = ParseOptionalEnumParameter<RigidbodySleepMode2D>(paramsObject, "sleepMode");
+
+        if (!bodyType.HasValue &&
+            !simulated.HasValue &&
+            !useAutoMass.HasValue &&
+            !mass.HasValue &&
+            !gravityScale.HasValue &&
+            !constraints.HasValue &&
+            !interpolation.HasValue &&
+            !collisionDetectionMode.HasValue &&
+            !sleepMode.HasValue)
+        {
+            throw new ArgumentException("At least one Rigidbody2D setting must be provided: bodyType, simulated, useAutoMass, mass, gravityScale, constraints, interpolation, collisionDetectionMode, or sleepMode.");
+        }
+
+        if (mass.HasValue && mass.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'mass' must be greater than 0.");
+        }
+
+        Undo.RecordObject(rigidbody, "UnityMCP Set Rigidbody2D Settings");
+
+        if (bodyType.HasValue)
+        {
+            rigidbody.bodyType = bodyType.Value;
+        }
+
+        if (simulated.HasValue)
+        {
+            rigidbody.simulated = simulated.Value;
+        }
+
+        if (useAutoMass.HasValue)
+        {
+            rigidbody.useAutoMass = useAutoMass.Value;
+        }
+
+        if (mass.HasValue)
+        {
+            rigidbody.mass = mass.Value;
+        }
+
+        if (gravityScale.HasValue)
+        {
+            rigidbody.gravityScale = gravityScale.Value;
+        }
+
+        if (constraints.HasValue)
+        {
+            rigidbody.constraints = constraints.Value;
+        }
+
+        if (interpolation.HasValue)
+        {
+            rigidbody.interpolation = interpolation.Value;
+        }
+
+        if (collisionDetectionMode.HasValue)
+        {
+            rigidbody.collisionDetectionMode = collisionDetectionMode.Value;
+        }
+
+        if (sleepMode.HasValue)
+        {
+            rigidbody.sleepMode = sleepMode.Value;
+        }
+
+        EditorUtility.SetDirty(rigidbody);
+
+        var result = new
+        {
+            target = CreateObjectSummary(rigidbody.gameObject),
+            component = CreateComponentSummary(rigidbody),
+            settings = CreateRigidbody2DSettingsSnapshot(rigidbody),
+            applied = new
+            {
+                bodyType = bodyType.HasValue,
+                simulated = simulated.HasValue,
+                useAutoMass = useAutoMass.HasValue,
+                mass = mass.HasValue,
+                gravityScale = gravityScale.HasValue,
+                constraints = constraints.HasValue,
+                interpolation = interpolation.HasValue,
+                collisionDetectionMode = collisionDetectionMode.HasValue,
+                sleepMode = sleepMode.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "collider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<Collider2D>(resolvedObject, "instanceId", "Collider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "collider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<Collider2D>(resolvedObject, "instanceId", "Collider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue)
+        {
+            throw new ArgumentException("At least one Collider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, or density.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+
+        Undo.RecordObject(collider, "UnityMCP Set Collider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetBoxCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "boxCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<BoxCollider2D>(resolvedObject, "instanceId", "BoxCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateBoxCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetBoxCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "boxCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<BoxCollider2D>(resolvedObject, "instanceId", "BoxCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+        var size = ParseOptionalVector2Parameter(paramsObject, "size");
+        var edgeRadius = ParseOptionalFloatParameter(paramsObject, "edgeRadius");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue &&
+            !size.HasValue &&
+            !edgeRadius.HasValue)
+        {
+            throw new ArgumentException("At least one BoxCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, density, size, or edgeRadius.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+        ValidatePositiveVector2(size, "size", "Parameter 'size' must contain positive values for BoxCollider2D width and height.");
+        if (edgeRadius.HasValue && edgeRadius.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'edgeRadius' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set BoxCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+
+        if (size.HasValue)
+        {
+            collider.size = size.Value;
+        }
+
+        if (edgeRadius.HasValue)
+        {
+            collider.edgeRadius = edgeRadius.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateBoxCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue,
+                size = size.HasValue,
+                edgeRadius = edgeRadius.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCircleCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "circleCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CircleCollider2D>(resolvedObject, "instanceId", "CircleCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCircleCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCircleCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "circleCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CircleCollider2D>(resolvedObject, "instanceId", "CircleCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+        var radius = ParseOptionalFloatParameter(paramsObject, "radius");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue &&
+            !radius.HasValue)
+        {
+            throw new ArgumentException("At least one CircleCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, density, or radius.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+        if (radius.HasValue && radius.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'radius' must be greater than 0.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set CircleCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+
+        if (radius.HasValue)
+        {
+            collider.radius = radius.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCircleCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue,
+                radius = radius.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCapsuleCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "capsuleCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CapsuleCollider2D>(resolvedObject, "instanceId", "CapsuleCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCapsuleCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCapsuleCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "capsuleCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CapsuleCollider2D>(resolvedObject, "instanceId", "CapsuleCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+        var size = ParseOptionalVector2Parameter(paramsObject, "size");
+        var direction = ParseOptionalEnumParameter<CapsuleDirection2D>(paramsObject, "direction");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue &&
+            !size.HasValue &&
+            !direction.HasValue)
+        {
+            throw new ArgumentException("At least one CapsuleCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, density, size, or direction.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+        ValidatePositiveVector2(size, "size", "Parameter 'size' must contain positive values for CapsuleCollider2D width and height.");
+
+        Undo.RecordObject(collider, "UnityMCP Set CapsuleCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+
+        if (size.HasValue)
+        {
+            collider.size = size.Value;
+        }
+
+        if (direction.HasValue)
+        {
+            collider.direction = direction.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCapsuleCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue,
+                size = size.HasValue,
+                direction = direction.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetPolygonCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "polygonCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<PolygonCollider2D>(resolvedObject, "instanceId", "PolygonCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreatePolygonCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetPolygonCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "polygonCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<PolygonCollider2D>(resolvedObject, "instanceId", "PolygonCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue)
+        {
+            throw new ArgumentException("At least one PolygonCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, or density.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+
+        Undo.RecordObject(collider, "UnityMCP Set PolygonCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreatePolygonCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetEdgeCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "edgeCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<EdgeCollider2D>(resolvedObject, "instanceId", "EdgeCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateEdgeCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetEdgeCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "edgeCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<EdgeCollider2D>(resolvedObject, "instanceId", "EdgeCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+        var edgeRadius = ParseOptionalFloatParameter(paramsObject, "edgeRadius");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue &&
+            !edgeRadius.HasValue)
+        {
+            throw new ArgumentException("At least one EdgeCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, density, or edgeRadius.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+        if (edgeRadius.HasValue && edgeRadius.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'edgeRadius' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set EdgeCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+
+        if (edgeRadius.HasValue)
+        {
+            collider.edgeRadius = edgeRadius.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateEdgeCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue,
+                edgeRadius = edgeRadius.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCompositeCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "compositeCollider2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CompositeCollider2D>(resolvedObject, "instanceId", "CompositeCollider2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCompositeCollider2DSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCompositeCollider2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "compositeCollider2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CompositeCollider2D>(resolvedObject, "instanceId", "CompositeCollider2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var usedByEffector = ParseOptionalBooleanValueParameter(paramsObject, "usedByEffector");
+        var offset = ParseOptionalVector2Parameter(paramsObject, "offset");
+        var density = ParseOptionalFloatParameter(paramsObject, "density");
+        var geometryType = ParseOptionalEnumParameter<CompositeCollider2D.GeometryType>(paramsObject, "geometryType");
+        var generationType = ParseOptionalEnumParameter<CompositeCollider2D.GenerationType>(paramsObject, "generationType");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !usedByEffector.HasValue &&
+            !offset.HasValue &&
+            !density.HasValue &&
+            !geometryType.HasValue &&
+            !generationType.HasValue)
+        {
+            throw new ArgumentException("At least one CompositeCollider2D setting must be provided: enabled, isTrigger, usedByEffector, offset, density, geometryType, or generationType.");
+        }
+
+        ValidateCommonCollider2DSettingValues(density);
+
+        Undo.RecordObject(collider, "UnityMCP Set CompositeCollider2D Settings");
+        ApplyCommonCollider2DSettings(collider, enabled, isTrigger, usedByEffector, offset, density);
+
+        if (geometryType.HasValue)
+        {
+            collider.geometryType = geometryType.Value;
+        }
+
+        if (generationType.HasValue)
+        {
+            collider.generationType = generationType.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCompositeCollider2DSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                usedByEffector = usedByEffector.HasValue,
+                offset = offset.HasValue,
+                density = density.HasValue,
+                geometryType = geometryType.HasValue,
+                generationType = generationType.HasValue
+            }
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
@@ -2260,6 +2925,16 @@ internal sealed class UnityMcpClient : IDisposable
         return ParseVector3Parameter(token, parameterName);
     }
 
+    private static Vector2? ParseOptionalVector2Parameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        return ParseVector2Token(token, parameterName);
+    }
+
     private static Color? ParseOptionalColorParameter(JObject paramsObject, string parameterName)
     {
         if (!paramsObject.TryGetValue(parameterName, out var token))
@@ -3342,6 +4017,14 @@ internal sealed class UnityMcpClient : IDisposable
         }
     }
 
+    private static void ValidateCommonCollider2DSettingValues(float? density)
+    {
+        if (density.HasValue && density.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'density' must be greater than or equal to 0.");
+        }
+    }
+
     private static void ValidatePositiveVector3(Vector3? value, string parameterName, string errorMessage)
     {
         if (!value.HasValue)
@@ -3351,6 +4034,20 @@ internal sealed class UnityMcpClient : IDisposable
 
         var vector = value.Value;
         if (vector.x <= 0f || vector.y <= 0f || vector.z <= 0f)
+        {
+            throw new ArgumentException(errorMessage);
+        }
+    }
+
+    private static void ValidatePositiveVector2(Vector2? value, string parameterName, string errorMessage)
+    {
+        if (!value.HasValue)
+        {
+            return;
+        }
+
+        var vector = value.Value;
+        if (vector.x <= 0f || vector.y <= 0f)
         {
             throw new ArgumentException(errorMessage);
         }
@@ -3371,6 +4068,40 @@ internal sealed class UnityMcpClient : IDisposable
         if (contactOffset.HasValue)
         {
             collider.contactOffset = contactOffset.Value;
+        }
+    }
+
+    private static void ApplyCommonCollider2DSettings(
+        Collider2D collider,
+        bool? enabled,
+        bool? isTrigger,
+        bool? usedByEffector,
+        Vector2? offset,
+        float? density)
+    {
+        if (enabled.HasValue)
+        {
+            collider.enabled = enabled.Value;
+        }
+
+        if (isTrigger.HasValue)
+        {
+            collider.isTrigger = isTrigger.Value;
+        }
+
+        if (usedByEffector.HasValue)
+        {
+            collider.usedByEffector = usedByEffector.Value;
+        }
+
+        if (offset.HasValue)
+        {
+            collider.offset = offset.Value;
+        }
+
+        if (density.HasValue)
+        {
+            collider.density = density.Value;
         }
     }
 
@@ -3527,6 +4258,22 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
+    private static object CreateRigidbody2DSettingsSnapshot(Rigidbody2D rigidbody)
+    {
+        return new
+        {
+            bodyType = CreateEnumSummary(rigidbody.bodyType),
+            simulated = rigidbody.simulated,
+            useAutoMass = rigidbody.useAutoMass,
+            mass = rigidbody.mass,
+            gravityScale = rigidbody.gravityScale,
+            constraints = CreateEnumSummary(rigidbody.constraints),
+            interpolation = CreateEnumSummary(rigidbody.interpolation),
+            collisionDetectionMode = CreateEnumSummary(rigidbody.collisionDetectionMode),
+            sleepMode = CreateEnumSummary(rigidbody.sleepMode)
+        };
+    }
+
     private static object CreateColliderSettingsSnapshot(Collider collider)
     {
         var boxCollider = collider as BoxCollider;
@@ -3550,6 +4297,58 @@ internal sealed class UnityMcpClient : IDisposable
             enabled = collider.enabled,
             isTrigger = collider.isTrigger,
             contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = sharedMaterial != null ? CreateObjectSummary(sharedMaterial) : null,
+            attachedRigidbody = attachedRigidbody != null ? CreateObjectSummary(attachedRigidbody) : null,
+            subtype
+        };
+    }
+
+    private static object CreateCollider2DSettingsSnapshot(Collider2D collider)
+    {
+        var sharedMaterial = collider.sharedMaterial;
+        var attachedRigidbody = collider.attachedRigidbody;
+
+        object? subtype = null;
+        if (collider is BoxCollider2D boxCollider)
+        {
+            subtype = new
+            {
+                kind = "BoxCollider2D",
+                size = CreateVector2Array(boxCollider.size),
+                edgeRadius = boxCollider.edgeRadius
+            };
+        }
+        else if (collider is CircleCollider2D circleCollider)
+        {
+            subtype = new
+            {
+                kind = "CircleCollider2D",
+                radius = circleCollider.radius
+            };
+        }
+        else if (collider is CapsuleCollider2D capsuleCollider)
+        {
+            subtype = new
+            {
+                kind = "CapsuleCollider2D",
+                size = CreateVector2Array(capsuleCollider.size),
+                direction = CreateEnumSummary(capsuleCollider.direction)
+            };
+        }
+
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
             boundsCenter = CreateVector3Array(collider.bounds.center),
             boundsSize = CreateVector3Array(collider.bounds.size),
             sharedMaterial = sharedMaterial != null ? CreateObjectSummary(sharedMaterial) : null,
@@ -3629,6 +4428,139 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
+    private static object CreateBoxCollider2DSettingsSnapshot(BoxCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            size = CreateVector2Array(collider.size),
+            edgeRadius = collider.edgeRadius
+        };
+    }
+
+    private static object CreateCircleCollider2DSettingsSnapshot(CircleCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            radius = collider.radius
+        };
+    }
+
+    private static object CreateCapsuleCollider2DSettingsSnapshot(CapsuleCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            size = CreateVector2Array(collider.size),
+            direction = CreateEnumSummary(collider.direction)
+        };
+    }
+
+    private static object CreatePolygonCollider2DSettingsSnapshot(PolygonCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            pathCount = collider.pathCount,
+            pointCount = collider.points?.Length ?? 0
+        };
+    }
+
+    private static object CreateEdgeCollider2DSettingsSnapshot(EdgeCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            edgeRadius = collider.edgeRadius,
+            pointCount = collider.points?.Length ?? 0
+        };
+    }
+
+    private static object CreateCompositeCollider2DSettingsSnapshot(CompositeCollider2D collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            usedByEffector = collider.usedByEffector,
+            usedByComposite = IsCollider2DUsedByComposite(collider),
+            compositeOperation = CreateEnumSummary(collider.compositeOperation),
+            offset = CreateVector2Array(collider.offset),
+            density = collider.density,
+            shapeCount = collider.shapeCount,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            geometryType = CreateEnumSummary(collider.geometryType),
+            generationType = CreateEnumSummary(collider.generationType),
+            pathCount = collider.pathCount,
+            pointCount = collider.pointCount
+        };
+    }
+
     private static object CreateCapsuleDirectionSummary(int direction)
     {
         var name = direction switch
@@ -3644,6 +4576,11 @@ internal sealed class UnityMcpClient : IDisposable
             name,
             value = direction
         };
+    }
+
+    private static bool IsCollider2DUsedByComposite(Collider2D collider)
+    {
+        return collider.compositeOperation != Collider2D.CompositeOperation.None;
     }
 
     private static object CreateEnumSummary<TEnum>(TEnum value)

@@ -214,6 +214,38 @@
     - `convex`
     - `cookingOptions`
   - `sharedMesh` assignment is intentionally out of scope for this slice.
+- `rigidbody2D.getSettings` / `rigidbody2D.setSettings`
+  - Typed convenience wrappers for `Rigidbody2D`.
+  - `setSettings` supports common 2D body fields (for example `bodyType`, `simulated`, `mass`, `gravityScale`, `constraints`, `interpolation`, `collisionDetectionMode`, `sleepMode`).
+- `collider2D.getSettings` / `collider2D.setSettings`
+  - Typed convenience wrappers for base `Collider2D`.
+  - `setSettings` supports base 2D collider fields:
+    - `enabled`
+    - `isTrigger`
+    - `usedByEffector`
+    - `offset`
+    - `density`
+- `boxCollider2D.getSettings` / `boxCollider2D.setSettings`
+  - Typed convenience wrappers for `BoxCollider2D`.
+  - `setSettings` supports base `Collider2D` fields plus `size` and `edgeRadius`.
+- `circleCollider2D.getSettings` / `circleCollider2D.setSettings`
+  - Typed convenience wrappers for `CircleCollider2D`.
+  - `setSettings` supports base `Collider2D` fields plus `radius`.
+- `capsuleCollider2D.getSettings` / `capsuleCollider2D.setSettings`
+  - Typed convenience wrappers for `CapsuleCollider2D`.
+  - `setSettings` supports base `Collider2D` fields plus `size` and `direction`.
+- `polygonCollider2D.getSettings` / `polygonCollider2D.setSettings`
+  - Typed convenience wrappers for `PolygonCollider2D`.
+  - `setSettings` uses a safe subset in the MVP (base `Collider2D` fields only; no path/points editing).
+- `edgeCollider2D.getSettings` / `edgeCollider2D.setSettings`
+  - Typed convenience wrappers for `EdgeCollider2D`.
+  - `setSettings` supports base `Collider2D` fields plus `edgeRadius`.
+- `compositeCollider2D.getSettings` / `compositeCollider2D.setSettings`
+  - Typed convenience wrappers for `CompositeCollider2D`.
+  - `setSettings` uses a safe subset in the MVP:
+    - base `Collider2D` fields
+    - `geometryType`
+    - `generationType`
 - `scene.getComponents`
   - Returns component metadata for a target `GameObject` (or a `Component` target's owner `GameObject`).
   - Params:
@@ -945,6 +977,150 @@ Request:
   "params": {
     "instanceId": 70005,
     "convex": true
+  }
+}
+```
+
+## `rigidbody2D.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "rigidbody2D.getSettings",
+  "params": {
+    "instanceId": 71001
+  }
+}
+```
+
+## `rigidbody2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "rigidbody2D.setSettings",
+  "params": {
+    "instanceId": 71001,
+    "bodyType": "Dynamic",
+    "gravityScale": 1.5,
+    "collisionDetectionMode": "Continuous"
+  }
+}
+```
+
+## `collider2D.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "collider2D.getSettings",
+  "params": {
+    "instanceId": 71002
+  }
+}
+```
+
+## `collider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "collider2D.setSettings",
+  "params": {
+    "instanceId": 71002,
+    "isTrigger": true,
+    "offset": [0.25, 0.0]
+  }
+}
+```
+
+## `boxCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "boxCollider2D.setSettings",
+  "params": {
+    "instanceId": 71003,
+    "size": [2.0, 3.0],
+    "edgeRadius": 0.1
+  }
+}
+```
+
+## `circleCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "circleCollider2D.setSettings",
+  "params": {
+    "instanceId": 71004,
+    "radius": 0.75
+  }
+}
+```
+
+## `capsuleCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "capsuleCollider2D.setSettings",
+  "params": {
+    "instanceId": 71005,
+    "size": [1.0, 2.5],
+    "direction": "Vertical"
+  }
+}
+```
+
+## `polygonCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "polygonCollider2D.setSettings",
+  "params": {
+    "instanceId": 71006,
+    "usedByEffector": false
+  }
+}
+```
+
+## `edgeCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "edgeCollider2D.setSettings",
+  "params": {
+    "instanceId": 71007,
+    "edgeRadius": 0.05
+  }
+}
+```
+
+## `compositeCollider2D.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "compositeCollider2D.setSettings",
+  "params": {
+    "instanceId": 71008,
+    "geometryType": "Outlines",
+    "generationType": "Manual"
   }
 }
 ```

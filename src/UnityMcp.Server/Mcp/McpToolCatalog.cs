@@ -333,6 +333,96 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "boxCollider.getSettings",
+                "Returns BoxCollider settings for a BoxCollider target (or a GameObject with a single BoxCollider).",
+                InstanceIdOnlySchema("Unity instance id of a BoxCollider component or a GameObject with a single BoxCollider.")),
+            new McpToolDefinition(
+                "boxCollider.setSettings",
+                "Mutates BoxCollider settings (includes base Collider fields and BoxCollider center/size).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["isTrigger"] = new JsonObject { ["type"] = "boolean" },
+                        ["contactOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["center"] = Vector3Schema("BoxCollider center [x,y,z]."),
+                        ["size"] = Vector3Schema("BoxCollider size [x,y,z].")
+                    }
+                }),
+            new McpToolDefinition(
+                "sphereCollider.getSettings",
+                "Returns SphereCollider settings for a SphereCollider target (or a GameObject with a single SphereCollider).",
+                InstanceIdOnlySchema("Unity instance id of a SphereCollider component or a GameObject with a single SphereCollider.")),
+            new McpToolDefinition(
+                "sphereCollider.setSettings",
+                "Mutates SphereCollider settings (includes base Collider fields and SphereCollider center/radius).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["isTrigger"] = new JsonObject { ["type"] = "boolean" },
+                        ["contactOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["center"] = Vector3Schema("SphereCollider center [x,y,z]."),
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "capsuleCollider.getSettings",
+                "Returns CapsuleCollider settings for a CapsuleCollider target (or a GameObject with a single CapsuleCollider).",
+                InstanceIdOnlySchema("Unity instance id of a CapsuleCollider component or a GameObject with a single CapsuleCollider.")),
+            new McpToolDefinition(
+                "capsuleCollider.setSettings",
+                "Mutates CapsuleCollider settings (includes base Collider fields and CapsuleCollider center/radius/height/direction).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["isTrigger"] = new JsonObject { ["type"] = "boolean" },
+                        ["contactOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["center"] = Vector3Schema("CapsuleCollider center [x,y,z]."),
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["height"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["direction"] = EnumLikeSchema("Capsule direction as enum name (X/Y/Z or 0/1/2) or integer value.")
+                    }
+                }),
+            new McpToolDefinition(
+                "meshCollider.getSettings",
+                "Returns MeshCollider settings for a MeshCollider target (or a GameObject with a single MeshCollider).",
+                InstanceIdOnlySchema("Unity instance id of a MeshCollider component or a GameObject with a single MeshCollider.")),
+            new McpToolDefinition(
+                "meshCollider.setSettings",
+                "Mutates a safe subset of MeshCollider settings (no sharedMesh assignment in MVP).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["isTrigger"] = new JsonObject { ["type"] = "boolean" },
+                        ["contactOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["convex"] = new JsonObject { ["type"] = "boolean" },
+                        ["cookingOptions"] = EnumLikeSchema("MeshColliderCookingOptions enum name or integer flags value.")
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.getComponents",
                 "Returns component metadata for the target GameObject (or a Component's owner GameObject).",
                 new JsonObject
@@ -697,6 +787,24 @@ public sealed class McpToolCatalog
             ["items"] = new JsonObject
             {
                 ["type"] = "number"
+            }
+        };
+    }
+
+    private static JsonObject InstanceIdOnlySchema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["additionalProperties"] = false,
+            ["required"] = new JsonArray("instanceId"),
+            ["properties"] = new JsonObject
+            {
+                ["instanceId"] = new JsonObject
+                {
+                    ["type"] = "integer",
+                    ["description"] = description
+                }
             }
         };
     }

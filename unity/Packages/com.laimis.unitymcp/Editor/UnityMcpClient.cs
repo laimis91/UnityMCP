@@ -200,6 +200,14 @@ internal sealed class UnityMcpClient : IDisposable
                 "rigidbody.setSettings" => BuildSetRigidbodySettingsResponse(idToken, root),
                 "collider.getSettings" => BuildGetColliderSettingsResponse(idToken, root),
                 "collider.setSettings" => BuildSetColliderSettingsResponse(idToken, root),
+                "boxCollider.getSettings" => BuildGetBoxColliderSettingsResponse(idToken, root),
+                "boxCollider.setSettings" => BuildSetBoxColliderSettingsResponse(idToken, root),
+                "sphereCollider.getSettings" => BuildGetSphereColliderSettingsResponse(idToken, root),
+                "sphereCollider.setSettings" => BuildSetSphereColliderSettingsResponse(idToken, root),
+                "capsuleCollider.getSettings" => BuildGetCapsuleColliderSettingsResponse(idToken, root),
+                "capsuleCollider.setSettings" => BuildSetCapsuleColliderSettingsResponse(idToken, root),
+                "meshCollider.getSettings" => BuildGetMeshColliderSettingsResponse(idToken, root),
+                "meshCollider.setSettings" => BuildSetMeshColliderSettingsResponse(idToken, root),
                 "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
                 "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
                 "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
@@ -873,6 +881,336 @@ internal sealed class UnityMcpClient : IDisposable
                 contactOffset = contactOffset.HasValue,
                 center = center.HasValue,
                 size = size.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetBoxColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "boxCollider.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<BoxCollider>(resolvedObject, "instanceId", "BoxCollider");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateBoxColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetBoxColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "boxCollider.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<BoxCollider>(resolvedObject, "instanceId", "BoxCollider");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var contactOffset = ParseOptionalFloatParameter(paramsObject, "contactOffset");
+        var center = ParseOptionalVector3Parameter(paramsObject, "center");
+        var size = ParseOptionalVector3Parameter(paramsObject, "size");
+
+        if (!enabled.HasValue && !isTrigger.HasValue && !contactOffset.HasValue && !center.HasValue && !size.HasValue)
+        {
+            throw new ArgumentException("At least one BoxCollider setting must be provided: enabled, isTrigger, contactOffset, center, or size.");
+        }
+
+        ValidateCommonColliderSettingValues(contactOffset);
+        ValidatePositiveVector3(size, "size", "Parameter 'size' must contain positive values for all BoxCollider axes.");
+
+        Undo.RecordObject(collider, "UnityMCP Set BoxCollider Settings");
+        ApplyCommonColliderSettings(collider, enabled, isTrigger, contactOffset);
+
+        if (center.HasValue)
+        {
+            collider.center = center.Value;
+        }
+
+        if (size.HasValue)
+        {
+            collider.size = size.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateBoxColliderSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                contactOffset = contactOffset.HasValue,
+                center = center.HasValue,
+                size = size.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetSphereColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "sphereCollider.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<SphereCollider>(resolvedObject, "instanceId", "SphereCollider");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateSphereColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetSphereColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "sphereCollider.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<SphereCollider>(resolvedObject, "instanceId", "SphereCollider");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var contactOffset = ParseOptionalFloatParameter(paramsObject, "contactOffset");
+        var center = ParseOptionalVector3Parameter(paramsObject, "center");
+        var radius = ParseOptionalFloatParameter(paramsObject, "radius");
+
+        if (!enabled.HasValue && !isTrigger.HasValue && !contactOffset.HasValue && !center.HasValue && !radius.HasValue)
+        {
+            throw new ArgumentException("At least one SphereCollider setting must be provided: enabled, isTrigger, contactOffset, center, or radius.");
+        }
+
+        ValidateCommonColliderSettingValues(contactOffset);
+        if (radius.HasValue && radius.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'radius' must be greater than 0.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set SphereCollider Settings");
+        ApplyCommonColliderSettings(collider, enabled, isTrigger, contactOffset);
+
+        if (center.HasValue)
+        {
+            collider.center = center.Value;
+        }
+
+        if (radius.HasValue)
+        {
+            collider.radius = radius.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateSphereColliderSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                contactOffset = contactOffset.HasValue,
+                center = center.HasValue,
+                radius = radius.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetCapsuleColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "capsuleCollider.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CapsuleCollider>(resolvedObject, "instanceId", "CapsuleCollider");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCapsuleColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCapsuleColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "capsuleCollider.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<CapsuleCollider>(resolvedObject, "instanceId", "CapsuleCollider");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var contactOffset = ParseOptionalFloatParameter(paramsObject, "contactOffset");
+        var center = ParseOptionalVector3Parameter(paramsObject, "center");
+        var radius = ParseOptionalFloatParameter(paramsObject, "radius");
+        var height = ParseOptionalFloatParameter(paramsObject, "height");
+        var direction = ParseOptionalCapsuleDirectionParameter(paramsObject, "direction");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !contactOffset.HasValue &&
+            !center.HasValue &&
+            !radius.HasValue &&
+            !height.HasValue &&
+            !direction.HasValue)
+        {
+            throw new ArgumentException("At least one CapsuleCollider setting must be provided: enabled, isTrigger, contactOffset, center, radius, height, or direction.");
+        }
+
+        ValidateCommonColliderSettingValues(contactOffset);
+        if (radius.HasValue && radius.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'radius' must be greater than 0.");
+        }
+
+        if (height.HasValue && height.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'height' must be greater than 0.");
+        }
+
+        if (direction.HasValue && !IsValidCapsuleDirection(direction.Value))
+        {
+            throw new ArgumentException("Parameter 'direction' must be a valid CapsuleDirection value (X, Y, Z or 0, 1, 2).");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set CapsuleCollider Settings");
+        ApplyCommonColliderSettings(collider, enabled, isTrigger, contactOffset);
+
+        if (center.HasValue)
+        {
+            collider.center = center.Value;
+        }
+
+        if (radius.HasValue)
+        {
+            collider.radius = radius.Value;
+        }
+
+        if (height.HasValue)
+        {
+            collider.height = height.Value;
+        }
+
+        if (direction.HasValue)
+        {
+            collider.direction = direction.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateCapsuleColliderSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                contactOffset = contactOffset.HasValue,
+                center = center.HasValue,
+                radius = radius.HasValue,
+                height = height.HasValue,
+                direction = direction.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetMeshColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "meshCollider.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<MeshCollider>(resolvedObject, "instanceId", "MeshCollider");
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateMeshColliderSettingsSnapshot(collider)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetMeshColliderSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "meshCollider.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var collider = ResolveComponentOfTypeTarget<MeshCollider>(resolvedObject, "instanceId", "MeshCollider");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var isTrigger = ParseOptionalBooleanValueParameter(paramsObject, "isTrigger");
+        var contactOffset = ParseOptionalFloatParameter(paramsObject, "contactOffset");
+        var convex = ParseOptionalBooleanValueParameter(paramsObject, "convex");
+        var cookingOptions = ParseOptionalEnumParameter<MeshColliderCookingOptions>(paramsObject, "cookingOptions");
+
+        if (!enabled.HasValue &&
+            !isTrigger.HasValue &&
+            !contactOffset.HasValue &&
+            !convex.HasValue &&
+            !cookingOptions.HasValue)
+        {
+            throw new ArgumentException("At least one MeshCollider setting must be provided: enabled, isTrigger, contactOffset, convex, or cookingOptions.");
+        }
+
+        ValidateCommonColliderSettingValues(contactOffset);
+
+        var effectiveConvex = convex ?? collider.convex;
+        var effectiveIsTrigger = isTrigger ?? collider.isTrigger;
+        if (effectiveIsTrigger && !effectiveConvex)
+        {
+            throw new ArgumentException("MeshCollider triggers must be convex. Set 'convex' to true when enabling 'isTrigger'.");
+        }
+
+        Undo.RecordObject(collider, "UnityMCP Set MeshCollider Settings");
+        ApplyCommonColliderSettings(collider, enabled, isTrigger, contactOffset);
+
+        if (convex.HasValue)
+        {
+            collider.convex = convex.Value;
+        }
+
+        if (cookingOptions.HasValue)
+        {
+            collider.cookingOptions = cookingOptions.Value;
+        }
+
+        EditorUtility.SetDirty(collider);
+
+        var result = new
+        {
+            target = CreateObjectSummary(collider.gameObject),
+            component = CreateComponentSummary(collider),
+            settings = CreateMeshColliderSettingsSnapshot(collider),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                isTrigger = isTrigger.HasValue,
+                contactOffset = contactOffset.HasValue,
+                convex = convex.HasValue,
+                cookingOptions = cookingOptions.HasValue
             }
         };
 
@@ -2943,6 +3281,99 @@ internal sealed class UnityMcpClient : IDisposable
         return new Quaternion(values[0], values[1], values[2], values[3]);
     }
 
+    private static int? ParseOptionalCapsuleDirectionParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        if (token.Type == JTokenType.Integer)
+        {
+            var value = token.Value<int?>();
+            if (!value.HasValue)
+            {
+                throw new ArgumentException($"Parameter '{parameterName}' must be X, Y, Z, or integer 0/1/2.");
+            }
+
+            return value.Value;
+        }
+
+        if (token.Type == JTokenType.String)
+        {
+            var rawValue = token.Value<string>();
+            if (string.IsNullOrWhiteSpace(rawValue))
+            {
+                throw new ArgumentException($"Parameter '{parameterName}' cannot be empty.");
+            }
+
+            var normalized = rawValue!.Trim();
+            if (string.Equals(normalized, "X", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0;
+            }
+
+            if (string.Equals(normalized, "Y", StringComparison.OrdinalIgnoreCase))
+            {
+                return 1;
+            }
+
+            if (string.Equals(normalized, "Z", StringComparison.OrdinalIgnoreCase))
+            {
+                return 2;
+            }
+
+            throw new ArgumentException($"Parameter '{parameterName}' must be X, Y, Z, or integer 0/1/2.");
+        }
+
+        throw new ArgumentException($"Parameter '{parameterName}' must be X, Y, Z, or integer 0/1/2.");
+    }
+
+    private static bool IsValidCapsuleDirection(int value)
+    {
+        return value >= 0 && value <= 2;
+    }
+
+    private static void ValidateCommonColliderSettingValues(float? contactOffset)
+    {
+        if (contactOffset.HasValue && contactOffset.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'contactOffset' must be greater than or equal to 0.");
+        }
+    }
+
+    private static void ValidatePositiveVector3(Vector3? value, string parameterName, string errorMessage)
+    {
+        if (!value.HasValue)
+        {
+            return;
+        }
+
+        var vector = value.Value;
+        if (vector.x <= 0f || vector.y <= 0f || vector.z <= 0f)
+        {
+            throw new ArgumentException(errorMessage);
+        }
+    }
+
+    private static void ApplyCommonColliderSettings(Collider collider, bool? enabled, bool? isTrigger, float? contactOffset)
+    {
+        if (enabled.HasValue)
+        {
+            collider.enabled = enabled.Value;
+        }
+
+        if (isTrigger.HasValue)
+        {
+            collider.isTrigger = isTrigger.Value;
+        }
+
+        if (contactOffset.HasValue)
+        {
+            collider.contactOffset = contactOffset.Value;
+        }
+    }
+
     private static string GetHierarchyPath(Transform transform)
     {
         var names = new Stack<string>();
@@ -3124,6 +3555,94 @@ internal sealed class UnityMcpClient : IDisposable
             sharedMaterial = sharedMaterial != null ? CreateObjectSummary(sharedMaterial) : null,
             attachedRigidbody = attachedRigidbody != null ? CreateObjectSummary(attachedRigidbody) : null,
             subtype
+        };
+    }
+
+    private static object CreateBoxColliderSettingsSnapshot(BoxCollider collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            center = CreateVector3Array(collider.center),
+            size = CreateVector3Array(collider.size)
+        };
+    }
+
+    private static object CreateSphereColliderSettingsSnapshot(SphereCollider collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            center = CreateVector3Array(collider.center),
+            radius = collider.radius
+        };
+    }
+
+    private static object CreateCapsuleColliderSettingsSnapshot(CapsuleCollider collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            center = CreateVector3Array(collider.center),
+            radius = collider.radius,
+            height = collider.height,
+            direction = CreateCapsuleDirectionSummary(collider.direction)
+        };
+    }
+
+    private static object CreateMeshColliderSettingsSnapshot(MeshCollider collider)
+    {
+        return new
+        {
+            colliderType = collider.GetType().FullName,
+            enabled = collider.enabled,
+            isTrigger = collider.isTrigger,
+            contactOffset = collider.contactOffset,
+            boundsCenter = CreateVector3Array(collider.bounds.center),
+            boundsSize = CreateVector3Array(collider.bounds.size),
+            sharedMaterial = collider.sharedMaterial != null ? CreateObjectSummary(collider.sharedMaterial) : null,
+            attachedRigidbody = collider.attachedRigidbody != null ? CreateObjectSummary(collider.attachedRigidbody) : null,
+            convex = collider.convex,
+            cookingOptions = CreateEnumSummary(collider.cookingOptions),
+            sharedMesh = collider.sharedMesh != null ? CreateObjectSummary(collider.sharedMesh) : null
+        };
+    }
+
+    private static object CreateCapsuleDirectionSummary(int direction)
+    {
+        var name = direction switch
+        {
+            0 => "X",
+            1 => "Y",
+            2 => "Z",
+            _ => "Unknown"
+        };
+
+        return new
+        {
+            name,
+            value = direction
         };
     }
 

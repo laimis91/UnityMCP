@@ -198,6 +198,22 @@
     - `component`
     - `settings`
     - `applied`
+- `boxCollider.getSettings` / `boxCollider.setSettings`
+  - Typed convenience wrappers for `BoxCollider`.
+  - `setSettings` supports base collider fields plus `center` and `size`.
+- `sphereCollider.getSettings` / `sphereCollider.setSettings`
+  - Typed convenience wrappers for `SphereCollider`.
+  - `setSettings` supports base collider fields plus `center` and `radius`.
+- `capsuleCollider.getSettings` / `capsuleCollider.setSettings`
+  - Typed convenience wrappers for `CapsuleCollider`.
+  - `setSettings` supports base collider fields plus `center`, `radius`, `height`, and `direction` (`X`/`Y`/`Z` or `0`/`1`/`2`).
+- `meshCollider.getSettings` / `meshCollider.setSettings`
+  - Typed convenience wrappers for `MeshCollider`.
+  - `setSettings` uses a safe subset in the MVP:
+    - base collider fields
+    - `convex`
+    - `cookingOptions`
+  - `sharedMesh` assignment is intentionally out of scope for this slice.
 - `scene.getComponents`
   - Returns component metadata for a target `GameObject` (or a `Component` target's owner `GameObject`).
   - Params:
@@ -818,6 +834,117 @@ Request:
     "isTrigger": true,
     "center": [0, 0.5, 0],
     "size": [1, 2, 1]
+  }
+}
+```
+
+## `boxCollider.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "boxCollider.getSettings",
+  "params": {
+    "instanceId": 70002
+  }
+}
+```
+
+## `boxCollider.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "boxCollider.setSettings",
+  "params": {
+    "instanceId": 70002,
+    "center": [0, 0.5, 0],
+    "size": [1, 2, 1]
+  }
+}
+```
+
+## `sphereCollider.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "sphereCollider.getSettings",
+  "params": {
+    "instanceId": 70003
+  }
+}
+```
+
+## `sphereCollider.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "sphereCollider.setSettings",
+  "params": {
+    "instanceId": 70003,
+    "radius": 1.5
+  }
+}
+```
+
+## `capsuleCollider.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "capsuleCollider.getSettings",
+  "params": {
+    "instanceId": 70004
+  }
+}
+```
+
+## `capsuleCollider.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "capsuleCollider.setSettings",
+  "params": {
+    "instanceId": 70004,
+    "radius": 0.75,
+    "height": 2.0,
+    "direction": "Z"
+  }
+}
+```
+
+## `meshCollider.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "meshCollider.getSettings",
+  "params": {
+    "instanceId": 70005
+  }
+}
+```
+
+## `meshCollider.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "meshCollider.setSettings",
+  "params": {
+    "instanceId": 70005,
+    "convex": true
   }
 }
 ```

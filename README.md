@@ -33,6 +33,14 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - `rigidbody.setSettings`
   - `collider.getSettings`
   - `collider.setSettings`
+  - `boxCollider.getSettings`
+  - `boxCollider.setSettings`
+  - `sphereCollider.getSettings`
+  - `sphereCollider.setSettings`
+  - `capsuleCollider.getSettings`
+  - `capsuleCollider.setSettings`
+  - `meshCollider.getSettings`
+  - `meshCollider.setSettings`
   - `scene.getComponents`
   - `scene.destroyObject`
   - `scene.getComponentProperties`
@@ -187,6 +195,14 @@ Default endpoint:
    - `rigidbody.setSettings`
    - `collider.getSettings`
    - `collider.setSettings`
+   - `boxCollider.getSettings`
+   - `boxCollider.setSettings`
+   - `sphereCollider.getSettings`
+   - `sphereCollider.setSettings`
+   - `capsuleCollider.getSettings`
+   - `capsuleCollider.setSettings`
+   - `meshCollider.getSettings`
+   - `meshCollider.setSettings`
    - `scene.getComponents`
    - `scene.destroyObject`
    - `scene.getComponentProperties`
@@ -216,6 +232,9 @@ Selection tool note:
 - Component property read/write uses a constrained serialized-property MVP (common simple types only; unsupported/non-editable properties fail clearly).
 - `camera.*` / `light.*` / `rigidbody.*` / `collider.*` provide direct API convenience wrappers (`getSettings` / `setSettings`) so you do not need serialized `m_*` field names for common workflows.
 - `collider.setSettings` currently supports BoxCollider-specific `center` / `size` fields in addition to base collider fields.
+- Subtype collider wrappers are available for `BoxCollider`, `SphereCollider`, `CapsuleCollider`, and `MeshCollider`:
+  - `boxCollider.*`, `sphereCollider.*`, `capsuleCollider.*`, `meshCollider.*`
+- `meshCollider.setSettings` intentionally uses a safe subset in the MVP (no `sharedMesh` assignment yet).
 - `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
 
 Example MCP `initialize` request:

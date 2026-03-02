@@ -22,11 +22,13 @@ internal sealed class UnityMcpClient : IDisposable
 
     private static UnityMcpClient? _instance;
 
+    private readonly object _lifecycleSync = new();
     private readonly SemaphoreSlim _sendLock = new(1, 1);
     private CancellationTokenSource? _lifetimeCts;
     private Task? _connectionLoopTask;
     private ClientWebSocket? _socket;
     private Uri? _configuredServerUri;
+    private int _runVersion;
 
     public static UnityMcpClient Instance
     {
@@ -43,11 +45,6 @@ internal sealed class UnityMcpClient : IDisposable
 
     public void Start()
     {
-        if (IsRunning)
-        {
-            return;
-        }
-
         UnityMcpConsoleLogBuffer.EnsureInitialized();
 
         if (!UnityMcpSettings.TryGetServerUri(out var serverUri, out var serverUriError))
@@ -56,20 +53,72 @@ internal sealed class UnityMcpClient : IDisposable
             return;
         }
 
-        _configuredServerUri = serverUri;
-        _lifetimeCts = new CancellationTokenSource();
-        _connectionLoopTask = Task.Run(() => ConnectionLoopAsync(_lifetimeCts.Token));
+        CancellationTokenSource? previousLifetime = null;
+        ClientWebSocket? previousSocket = null;
+        var shouldStart = false;
+        var runVersion = 0;
+        CancellationTokenSource? newLifetime = null;
+
+        lock (_lifecycleSync)
+        {
+            if (_connectionLoopTask is { IsCompleted: false } &&
+                _socket?.State == WebSocketState.Open &&
+                Equals(_configuredServerUri, serverUri))
+            {
+                return;
+            }
+
+            previousLifetime = _lifetimeCts;
+            previousSocket = _socket;
+
+            _runVersion++;
+            runVersion = _runVersion;
+            _configuredServerUri = serverUri;
+            _socket = null;
+
+            newLifetime = new CancellationTokenSource();
+            _lifetimeCts = newLifetime;
+            _connectionLoopTask = Task.Run(() => ConnectionLoopAsync(runVersion, newLifetime.Token));
+            shouldStart = true;
+        }
+
+        CancelLifetime(previousLifetime);
+        DisposeSocket(previousSocket);
+
+        if (!shouldStart)
+        {
+            newLifetime?.Dispose();
+        }
     }
 
     public void Stop()
     {
+        CancellationTokenSource? lifetimeToCancel;
+        ClientWebSocket? socketToDispose;
+
+        lock (_lifecycleSync)
+        {
+            _runVersion++;
+            lifetimeToCancel = _lifetimeCts;
+            socketToDispose = _socket;
+            _lifetimeCts = null;
+            _connectionLoopTask = null;
+            _socket = null;
+        }
+
+        DisposeSocket(socketToDispose);
+
         try
         {
-            _lifetimeCts?.Cancel();
+            lifetimeToCancel?.Cancel();
         }
         catch
         {
             // Ignore cancellation races during domain reload/editor shutdown.
+        }
+        finally
+        {
+            lifetimeToCancel?.Dispose();
         }
     }
 
@@ -81,9 +130,9 @@ internal sealed class UnityMcpClient : IDisposable
         _lifetimeCts?.Dispose();
     }
 
-    private async Task ConnectionLoopAsync(CancellationToken cancellationToken)
+    private async Task ConnectionLoopAsync(int runVersion, CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested && IsCurrentRun(runVersion))
         {
             ClientWebSocket? socket = null;
             try
@@ -97,9 +146,19 @@ internal sealed class UnityMcpClient : IDisposable
                 }
 
                 socket = new ClientWebSocket();
-                _socket = socket;
+                if (!TryRegisterSocket(runVersion, socket))
+                {
+                    socket.Dispose();
+                    break;
+                }
 
                 await socket.ConnectAsync(serverUri, cancellationToken);
+
+                if (!IsCurrentRun(runVersion))
+                {
+                    break;
+                }
+
                 Debug.Log($"[UnityMCP] Connected to {serverUri}.");
 
                 await ReceiveLoopAsync(socket, cancellationToken);
@@ -110,23 +169,15 @@ internal sealed class UnityMcpClient : IDisposable
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[UnityMCP] Connection loop error: {ex.Message}");
+                if (IsCurrentRun(runVersion) && !cancellationToken.IsCancellationRequested)
+                {
+                    Debug.LogWarning($"[UnityMCP] Connection loop error: {ex.Message}");
+                }
             }
             finally
             {
-                try
-                {
-                    socket?.Dispose();
-                }
-                catch
-                {
-                    // Ignore cleanup failures.
-                }
-
-                if (ReferenceEquals(_socket, socket))
-                {
-                    _socket = null;
-                }
+                DisposeSocket(socket);
+                ClearSocket(runVersion, socket);
             }
 
             try
@@ -137,6 +188,86 @@ internal sealed class UnityMcpClient : IDisposable
             {
                 break;
             }
+        }
+    }
+
+    private bool IsCurrentRun(int runVersion)
+    {
+        lock (_lifecycleSync)
+        {
+            return _runVersion == runVersion;
+        }
+    }
+
+    private bool TryRegisterSocket(int runVersion, ClientWebSocket socket)
+    {
+        lock (_lifecycleSync)
+        {
+            if (_runVersion != runVersion)
+            {
+                return false;
+            }
+
+            _socket = socket;
+            return true;
+        }
+    }
+
+    private void ClearSocket(int runVersion, ClientWebSocket? socket)
+    {
+        lock (_lifecycleSync)
+        {
+            if (_runVersion == runVersion && ReferenceEquals(_socket, socket))
+            {
+                _socket = null;
+            }
+        }
+    }
+
+    private static void CancelLifetime(CancellationTokenSource? lifetime)
+    {
+        if (lifetime == null)
+        {
+            return;
+        }
+
+        try
+        {
+            lifetime.Cancel();
+        }
+        catch
+        {
+            // Ignore cancellation races during restart.
+        }
+        finally
+        {
+            lifetime.Dispose();
+        }
+    }
+
+    private static void DisposeSocket(ClientWebSocket? socket)
+    {
+        if (socket == null)
+        {
+            return;
+        }
+
+        try
+        {
+            socket.Abort();
+        }
+        catch
+        {
+            // Ignore socket abort failures during shutdown/restart.
+        }
+
+        try
+        {
+            socket.Dispose();
+        }
+        catch
+        {
+            // Ignore cleanup failures.
         }
     }
 
@@ -226,6 +357,28 @@ internal sealed class UnityMcpClient : IDisposable
                 "edgeCollider2D.setSettings" => BuildSetEdgeCollider2DSettingsResponse(idToken, root),
                 "compositeCollider2D.getSettings" => BuildGetCompositeCollider2DSettingsResponse(idToken, root),
                 "compositeCollider2D.setSettings" => BuildSetCompositeCollider2DSettingsResponse(idToken, root),
+                "hingeJoint2D.getSettings" => BuildGetHingeJoint2DSettingsResponse(idToken, root),
+                "hingeJoint2D.setSettings" => BuildSetHingeJoint2DSettingsResponse(idToken, root),
+                "springJoint2D.getSettings" => BuildGetSpringJoint2DSettingsResponse(idToken, root),
+                "springJoint2D.setSettings" => BuildSetSpringJoint2DSettingsResponse(idToken, root),
+                "distanceJoint2D.getSettings" => BuildGetDistanceJoint2DSettingsResponse(idToken, root),
+                "distanceJoint2D.setSettings" => BuildSetDistanceJoint2DSettingsResponse(idToken, root),
+                "fixedJoint2D.getSettings" => BuildGetFixedJoint2DSettingsResponse(idToken, root),
+                "fixedJoint2D.setSettings" => BuildSetFixedJoint2DSettingsResponse(idToken, root),
+                "sliderJoint2D.getSettings" => BuildGetSliderJoint2DSettingsResponse(idToken, root),
+                "sliderJoint2D.setSettings" => BuildSetSliderJoint2DSettingsResponse(idToken, root),
+                "wheelJoint2D.getSettings" => BuildGetWheelJoint2DSettingsResponse(idToken, root),
+                "wheelJoint2D.setSettings" => BuildSetWheelJoint2DSettingsResponse(idToken, root),
+                "targetJoint2D.getSettings" => BuildGetTargetJoint2DSettingsResponse(idToken, root),
+                "targetJoint2D.setSettings" => BuildSetTargetJoint2DSettingsResponse(idToken, root),
+                "hingeJoint.getSettings" => BuildGetHingeJointSettingsResponse(idToken, root),
+                "hingeJoint.setSettings" => BuildSetHingeJointSettingsResponse(idToken, root),
+                "springJoint.getSettings" => BuildGetSpringJointSettingsResponse(idToken, root),
+                "springJoint.setSettings" => BuildSetSpringJointSettingsResponse(idToken, root),
+                "fixedJoint.getSettings" => BuildGetFixedJointSettingsResponse(idToken, root),
+                "fixedJoint.setSettings" => BuildSetFixedJointSettingsResponse(idToken, root),
+                "configurableJoint.getSettings" => BuildGetConfigurableJointSettingsResponse(idToken, root),
+                "configurableJoint.setSettings" => BuildSetConfigurableJointSettingsResponse(idToken, root),
                 "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
                 "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
                 "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
@@ -1882,6 +2035,1450 @@ internal sealed class UnityMcpClient : IDisposable
         return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
+    private static string BuildGetHingeJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "hingeJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<HingeJoint2D>(resolvedObject, "instanceId", "HingeJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateHingeJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetHingeJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "hingeJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<HingeJoint2D>(resolvedObject, "instanceId", "HingeJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var useMotor = ParseOptionalBooleanValueParameter(paramsObject, "useMotor");
+        var motorSpeed = ParseOptionalFloatParameter(paramsObject, "motorSpeed");
+        var maxMotorTorque = ParseOptionalFloatParameter(paramsObject, "maxMotorTorque");
+        var useLimits = ParseOptionalBooleanValueParameter(paramsObject, "useLimits");
+        var lowerAngle = ParseOptionalFloatParameter(paramsObject, "lowerAngle");
+        var upperAngle = ParseOptionalFloatParameter(paramsObject, "upperAngle");
+        var useConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "useConnectedAnchor");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !useMotor.HasValue &&
+            !motorSpeed.HasValue &&
+            !maxMotorTorque.HasValue &&
+            !useLimits.HasValue &&
+            !lowerAngle.HasValue &&
+            !upperAngle.HasValue &&
+            !useConnectedAnchor.HasValue)
+        {
+            throw new ArgumentException("At least one HingeJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (maxMotorTorque.HasValue && maxMotorTorque.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'maxMotorTorque' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set HingeJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (useConnectedAnchor.HasValue)
+        {
+            joint.useConnectedAnchor = useConnectedAnchor.Value;
+        }
+
+        if (useMotor.HasValue)
+        {
+            joint.useMotor = useMotor.Value;
+        }
+
+        if (motorSpeed.HasValue || maxMotorTorque.HasValue)
+        {
+            var motor = joint.motor;
+            if (motorSpeed.HasValue)
+            {
+                motor.motorSpeed = motorSpeed.Value;
+            }
+
+            if (maxMotorTorque.HasValue)
+            {
+                motor.maxMotorTorque = maxMotorTorque.Value;
+            }
+
+            joint.motor = motor;
+        }
+
+        if (useLimits.HasValue)
+        {
+            joint.useLimits = useLimits.Value;
+        }
+
+        if (lowerAngle.HasValue || upperAngle.HasValue)
+        {
+            var limits = joint.limits;
+            if (lowerAngle.HasValue)
+            {
+                limits.min = lowerAngle.Value;
+            }
+
+            if (upperAngle.HasValue)
+            {
+                limits.max = upperAngle.Value;
+            }
+
+            joint.limits = limits;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateHingeJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                useMotor = useMotor.HasValue,
+                motorSpeed = motorSpeed.HasValue,
+                maxMotorTorque = maxMotorTorque.HasValue,
+                useLimits = useLimits.HasValue,
+                lowerAngle = lowerAngle.HasValue,
+                upperAngle = upperAngle.HasValue,
+                useConnectedAnchor = useConnectedAnchor.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetSpringJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "springJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SpringJoint2D>(resolvedObject, "instanceId", "SpringJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSpringJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetSpringJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "springJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SpringJoint2D>(resolvedObject, "instanceId", "SpringJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var autoConfigureDistance = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureDistance");
+        var distance = ParseOptionalFloatParameter(paramsObject, "distance");
+        var dampingRatio = ParseOptionalFloatParameter(paramsObject, "dampingRatio");
+        var frequency = ParseOptionalFloatParameter(paramsObject, "frequency");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !autoConfigureDistance.HasValue &&
+            !distance.HasValue &&
+            !dampingRatio.HasValue &&
+            !frequency.HasValue)
+        {
+            throw new ArgumentException("At least one SpringJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (distance.HasValue && distance.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'distance' must be greater than or equal to 0.");
+        }
+
+        if (dampingRatio.HasValue && (dampingRatio.Value < 0f || dampingRatio.Value > 1f))
+        {
+            throw new ArgumentException("Parameter 'dampingRatio' must be between 0 and 1.");
+        }
+
+        if (frequency.HasValue && frequency.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'frequency' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set SpringJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (autoConfigureDistance.HasValue)
+        {
+            joint.autoConfigureDistance = autoConfigureDistance.Value;
+        }
+
+        if (distance.HasValue)
+        {
+            joint.distance = distance.Value;
+        }
+
+        if (dampingRatio.HasValue)
+        {
+            joint.dampingRatio = dampingRatio.Value;
+        }
+
+        if (frequency.HasValue)
+        {
+            joint.frequency = frequency.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSpringJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                autoConfigureDistance = autoConfigureDistance.HasValue,
+                distance = distance.HasValue,
+                dampingRatio = dampingRatio.HasValue,
+                frequency = frequency.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetDistanceJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "distanceJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<DistanceJoint2D>(resolvedObject, "instanceId", "DistanceJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateDistanceJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetDistanceJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "distanceJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<DistanceJoint2D>(resolvedObject, "instanceId", "DistanceJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var autoConfigureDistance = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureDistance");
+        var distance = ParseOptionalFloatParameter(paramsObject, "distance");
+        var maxDistanceOnly = ParseOptionalBooleanValueParameter(paramsObject, "maxDistanceOnly");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !autoConfigureDistance.HasValue &&
+            !distance.HasValue &&
+            !maxDistanceOnly.HasValue)
+        {
+            throw new ArgumentException("At least one DistanceJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (distance.HasValue && distance.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'distance' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set DistanceJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (autoConfigureDistance.HasValue)
+        {
+            joint.autoConfigureDistance = autoConfigureDistance.Value;
+        }
+
+        if (distance.HasValue)
+        {
+            joint.distance = distance.Value;
+        }
+
+        if (maxDistanceOnly.HasValue)
+        {
+            joint.maxDistanceOnly = maxDistanceOnly.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateDistanceJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                autoConfigureDistance = autoConfigureDistance.HasValue,
+                distance = distance.HasValue,
+                maxDistanceOnly = maxDistanceOnly.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetFixedJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "fixedJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<FixedJoint2D>(resolvedObject, "instanceId", "FixedJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateFixedJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetFixedJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "fixedJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<FixedJoint2D>(resolvedObject, "instanceId", "FixedJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var dampingRatio = ParseOptionalFloatParameter(paramsObject, "dampingRatio");
+        var frequency = ParseOptionalFloatParameter(paramsObject, "frequency");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !dampingRatio.HasValue &&
+            !frequency.HasValue)
+        {
+            throw new ArgumentException("At least one FixedJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (dampingRatio.HasValue && (dampingRatio.Value < 0f || dampingRatio.Value > 1f))
+        {
+            throw new ArgumentException("Parameter 'dampingRatio' must be between 0 and 1.");
+        }
+
+        if (frequency.HasValue && frequency.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'frequency' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set FixedJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (dampingRatio.HasValue)
+        {
+            joint.dampingRatio = dampingRatio.Value;
+        }
+
+        if (frequency.HasValue)
+        {
+            joint.frequency = frequency.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateFixedJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                dampingRatio = dampingRatio.HasValue,
+                frequency = frequency.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetSliderJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "sliderJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SliderJoint2D>(resolvedObject, "instanceId", "SliderJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSliderJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetSliderJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "sliderJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SliderJoint2D>(resolvedObject, "instanceId", "SliderJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var autoConfigureAngle = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureAngle");
+        var angle = ParseOptionalFloatParameter(paramsObject, "angle");
+        var useMotor = ParseOptionalBooleanValueParameter(paramsObject, "useMotor");
+        var motorSpeed = ParseOptionalFloatParameter(paramsObject, "motorSpeed");
+        var maxMotorTorque = ParseOptionalFloatParameter(paramsObject, "maxMotorTorque");
+        var useLimits = ParseOptionalBooleanValueParameter(paramsObject, "useLimits");
+        var lowerTranslation = ParseOptionalFloatParameter(paramsObject, "lowerTranslation");
+        var upperTranslation = ParseOptionalFloatParameter(paramsObject, "upperTranslation");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !autoConfigureAngle.HasValue &&
+            !angle.HasValue &&
+            !useMotor.HasValue &&
+            !motorSpeed.HasValue &&
+            !maxMotorTorque.HasValue &&
+            !useLimits.HasValue &&
+            !lowerTranslation.HasValue &&
+            !upperTranslation.HasValue)
+        {
+            throw new ArgumentException("At least one SliderJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (maxMotorTorque.HasValue && maxMotorTorque.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'maxMotorTorque' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set SliderJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (autoConfigureAngle.HasValue)
+        {
+            joint.autoConfigureAngle = autoConfigureAngle.Value;
+        }
+
+        if (angle.HasValue)
+        {
+            joint.angle = angle.Value;
+        }
+
+        if (useMotor.HasValue)
+        {
+            joint.useMotor = useMotor.Value;
+        }
+
+        if (motorSpeed.HasValue || maxMotorTorque.HasValue)
+        {
+            var motor = joint.motor;
+            if (motorSpeed.HasValue)
+            {
+                motor.motorSpeed = motorSpeed.Value;
+            }
+
+            if (maxMotorTorque.HasValue)
+            {
+                motor.maxMotorTorque = maxMotorTorque.Value;
+            }
+
+            joint.motor = motor;
+        }
+
+        if (useLimits.HasValue)
+        {
+            joint.useLimits = useLimits.Value;
+        }
+
+        if (lowerTranslation.HasValue || upperTranslation.HasValue)
+        {
+            var limits = joint.limits;
+            if (lowerTranslation.HasValue)
+            {
+                limits.min = lowerTranslation.Value;
+            }
+
+            if (upperTranslation.HasValue)
+            {
+                limits.max = upperTranslation.Value;
+            }
+
+            joint.limits = limits;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSliderJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                autoConfigureAngle = autoConfigureAngle.HasValue,
+                angle = angle.HasValue,
+                useMotor = useMotor.HasValue,
+                motorSpeed = motorSpeed.HasValue,
+                maxMotorTorque = maxMotorTorque.HasValue,
+                useLimits = useLimits.HasValue,
+                lowerTranslation = lowerTranslation.HasValue,
+                upperTranslation = upperTranslation.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetWheelJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "wheelJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<WheelJoint2D>(resolvedObject, "instanceId", "WheelJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateWheelJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetWheelJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "wheelJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<WheelJoint2D>(resolvedObject, "instanceId", "WheelJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector2Parameter(paramsObject, "connectedAnchor");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var useMotor = ParseOptionalBooleanValueParameter(paramsObject, "useMotor");
+        var motorSpeed = ParseOptionalFloatParameter(paramsObject, "motorSpeed");
+        var maxMotorTorque = ParseOptionalFloatParameter(paramsObject, "maxMotorTorque");
+        var suspensionDampingRatio = ParseOptionalFloatParameter(paramsObject, "suspensionDampingRatio");
+        var suspensionFrequency = ParseOptionalFloatParameter(paramsObject, "suspensionFrequency");
+        var suspensionAngle = ParseOptionalFloatParameter(paramsObject, "suspensionAngle");
+
+        if (!enabled.HasValue &&
+            !autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !useMotor.HasValue &&
+            !motorSpeed.HasValue &&
+            !maxMotorTorque.HasValue &&
+            !suspensionDampingRatio.HasValue &&
+            !suspensionFrequency.HasValue &&
+            !suspensionAngle.HasValue)
+        {
+            throw new ArgumentException("At least one WheelJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (maxMotorTorque.HasValue && maxMotorTorque.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'maxMotorTorque' must be greater than or equal to 0.");
+        }
+
+        if (suspensionDampingRatio.HasValue && (suspensionDampingRatio.Value < 0f || suspensionDampingRatio.Value > 1f))
+        {
+            throw new ArgumentException("Parameter 'suspensionDampingRatio' must be between 0 and 1.");
+        }
+
+        if (suspensionFrequency.HasValue && suspensionFrequency.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'suspensionFrequency' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set WheelJoint2D Settings");
+        ApplyCommonJoint2DSettings(joint, enabled, autoConfigureConnectedAnchor, anchor, connectedAnchor, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (useMotor.HasValue)
+        {
+            joint.useMotor = useMotor.Value;
+        }
+
+        if (motorSpeed.HasValue || maxMotorTorque.HasValue)
+        {
+            var motor = joint.motor;
+            if (motorSpeed.HasValue)
+            {
+                motor.motorSpeed = motorSpeed.Value;
+            }
+
+            if (maxMotorTorque.HasValue)
+            {
+                motor.maxMotorTorque = maxMotorTorque.Value;
+            }
+
+            joint.motor = motor;
+        }
+
+        if (suspensionDampingRatio.HasValue || suspensionFrequency.HasValue || suspensionAngle.HasValue)
+        {
+            var suspension = joint.suspension;
+            if (suspensionDampingRatio.HasValue)
+            {
+                suspension.dampingRatio = suspensionDampingRatio.Value;
+            }
+
+            if (suspensionFrequency.HasValue)
+            {
+                suspension.frequency = suspensionFrequency.Value;
+            }
+
+            if (suspensionAngle.HasValue)
+            {
+                suspension.angle = suspensionAngle.Value;
+            }
+
+            joint.suspension = suspension;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateWheelJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                useMotor = useMotor.HasValue,
+                motorSpeed = motorSpeed.HasValue,
+                maxMotorTorque = maxMotorTorque.HasValue,
+                suspensionDampingRatio = suspensionDampingRatio.HasValue,
+                suspensionFrequency = suspensionFrequency.HasValue,
+                suspensionAngle = suspensionAngle.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetTargetJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "targetJoint2D.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<TargetJoint2D>(resolvedObject, "instanceId", "TargetJoint2D");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateTargetJoint2DSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetTargetJoint2DSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "targetJoint2D.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<TargetJoint2D>(resolvedObject, "instanceId", "TargetJoint2D");
+
+        var enabled = ParseOptionalBooleanValueParameter(paramsObject, "enabled");
+        var anchor = ParseOptionalVector2Parameter(paramsObject, "anchor");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var autoConfigureTarget = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureTarget");
+        var target = ParseOptionalVector2Parameter(paramsObject, "target");
+        var maxForce = ParseOptionalFloatParameter(paramsObject, "maxForce");
+        var dampingRatio = ParseOptionalFloatParameter(paramsObject, "dampingRatio");
+        var frequency = ParseOptionalFloatParameter(paramsObject, "frequency");
+
+        if (!enabled.HasValue &&
+            !anchor.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !autoConfigureTarget.HasValue &&
+            !target.HasValue &&
+            !maxForce.HasValue &&
+            !dampingRatio.HasValue &&
+            !frequency.HasValue)
+        {
+            throw new ArgumentException("At least one TargetJoint2D setting must be provided.");
+        }
+
+        ValidateCommonJoint2DSettingValues(breakForce, breakTorque);
+        if (maxForce.HasValue && maxForce.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'maxForce' must be greater than or equal to 0.");
+        }
+
+        if (dampingRatio.HasValue && (dampingRatio.Value < 0f || dampingRatio.Value > 1f))
+        {
+            throw new ArgumentException("Parameter 'dampingRatio' must be between 0 and 1.");
+        }
+
+        if (frequency.HasValue && frequency.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'frequency' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set TargetJoint2D Settings");
+
+        if (enabled.HasValue)
+        {
+            joint.enabled = enabled.Value;
+        }
+
+        if (anchor.HasValue)
+        {
+            joint.anchor = anchor.Value;
+        }
+
+        if (breakForce.HasValue)
+        {
+            joint.breakForce = breakForce.Value;
+        }
+
+        if (breakTorque.HasValue)
+        {
+            joint.breakTorque = breakTorque.Value;
+        }
+
+        if (autoConfigureTarget.HasValue)
+        {
+            joint.autoConfigureTarget = autoConfigureTarget.Value;
+        }
+
+        if (target.HasValue)
+        {
+            joint.target = target.Value;
+        }
+
+        if (maxForce.HasValue)
+        {
+            joint.maxForce = maxForce.Value;
+        }
+
+        if (dampingRatio.HasValue)
+        {
+            joint.dampingRatio = dampingRatio.Value;
+        }
+
+        if (frequency.HasValue)
+        {
+            joint.frequency = frequency.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateTargetJoint2DSettingsSnapshot(joint),
+            applied = new
+            {
+                enabled = enabled.HasValue,
+                anchor = anchor.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                autoConfigureTarget = autoConfigureTarget.HasValue,
+                target = target.HasValue,
+                maxForce = maxForce.HasValue,
+                dampingRatio = dampingRatio.HasValue,
+                frequency = frequency.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetHingeJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "hingeJoint.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<HingeJoint>(resolvedObject, "instanceId", "HingeJoint");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateHingeJointSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetHingeJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "hingeJoint.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<HingeJoint>(resolvedObject, "instanceId", "HingeJoint");
+
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector3Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector3Parameter(paramsObject, "connectedAnchor");
+        var axis = ParseOptionalVector3Parameter(paramsObject, "axis");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var useSpring = ParseOptionalBooleanValueParameter(paramsObject, "useSpring");
+        var spring = ParseOptionalFloatParameter(paramsObject, "spring");
+        var damper = ParseOptionalFloatParameter(paramsObject, "damper");
+        var targetPosition = ParseOptionalFloatParameter(paramsObject, "targetPosition");
+        var useMotor = ParseOptionalBooleanValueParameter(paramsObject, "useMotor");
+        var motorTargetVelocity = ParseOptionalFloatParameter(paramsObject, "motorTargetVelocity");
+        var motorForce = ParseOptionalFloatParameter(paramsObject, "motorForce");
+        var motorFreeSpin = ParseOptionalBooleanValueParameter(paramsObject, "motorFreeSpin");
+        var useLimits = ParseOptionalBooleanValueParameter(paramsObject, "useLimits");
+        var minLimit = ParseOptionalFloatParameter(paramsObject, "minLimit");
+        var maxLimit = ParseOptionalFloatParameter(paramsObject, "maxLimit");
+
+        if (!autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !axis.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !useSpring.HasValue &&
+            !spring.HasValue &&
+            !damper.HasValue &&
+            !targetPosition.HasValue &&
+            !useMotor.HasValue &&
+            !motorTargetVelocity.HasValue &&
+            !motorForce.HasValue &&
+            !motorFreeSpin.HasValue &&
+            !useLimits.HasValue &&
+            !minLimit.HasValue &&
+            !maxLimit.HasValue)
+        {
+            throw new ArgumentException("At least one HingeJoint setting must be provided.");
+        }
+
+        ValidateCommonJointSettingValues(breakForce, breakTorque);
+        if (spring.HasValue && spring.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'spring' must be greater than or equal to 0.");
+        }
+
+        if (damper.HasValue && damper.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'damper' must be greater than or equal to 0.");
+        }
+
+        if (motorForce.HasValue && motorForce.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'motorForce' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set HingeJoint Settings");
+        ApplyCommonJointSettings(joint, autoConfigureConnectedAnchor, anchor, connectedAnchor, axis, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (useSpring.HasValue)
+        {
+            joint.useSpring = useSpring.Value;
+        }
+
+        if (spring.HasValue || damper.HasValue || targetPosition.HasValue)
+        {
+            var springSettings = joint.spring;
+            if (spring.HasValue)
+            {
+                springSettings.spring = spring.Value;
+            }
+
+            if (damper.HasValue)
+            {
+                springSettings.damper = damper.Value;
+            }
+
+            if (targetPosition.HasValue)
+            {
+                springSettings.targetPosition = targetPosition.Value;
+            }
+
+            joint.spring = springSettings;
+        }
+
+        if (useMotor.HasValue)
+        {
+            joint.useMotor = useMotor.Value;
+        }
+
+        if (motorTargetVelocity.HasValue || motorForce.HasValue || motorFreeSpin.HasValue)
+        {
+            var motor = joint.motor;
+            if (motorTargetVelocity.HasValue)
+            {
+                motor.targetVelocity = motorTargetVelocity.Value;
+            }
+
+            if (motorForce.HasValue)
+            {
+                motor.force = motorForce.Value;
+            }
+
+            if (motorFreeSpin.HasValue)
+            {
+                motor.freeSpin = motorFreeSpin.Value;
+            }
+
+            joint.motor = motor;
+        }
+
+        if (useLimits.HasValue)
+        {
+            joint.useLimits = useLimits.Value;
+        }
+
+        if (minLimit.HasValue || maxLimit.HasValue)
+        {
+            var limits = joint.limits;
+            if (minLimit.HasValue)
+            {
+                limits.min = minLimit.Value;
+            }
+
+            if (maxLimit.HasValue)
+            {
+                limits.max = maxLimit.Value;
+            }
+
+            joint.limits = limits;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateHingeJointSettingsSnapshot(joint),
+            applied = new
+            {
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                axis = axis.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                useSpring = useSpring.HasValue,
+                spring = spring.HasValue,
+                damper = damper.HasValue,
+                targetPosition = targetPosition.HasValue,
+                useMotor = useMotor.HasValue,
+                motorTargetVelocity = motorTargetVelocity.HasValue,
+                motorForce = motorForce.HasValue,
+                motorFreeSpin = motorFreeSpin.HasValue,
+                useLimits = useLimits.HasValue,
+                minLimit = minLimit.HasValue,
+                maxLimit = maxLimit.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetSpringJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "springJoint.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SpringJoint>(resolvedObject, "instanceId", "SpringJoint");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSpringJointSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetSpringJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "springJoint.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<SpringJoint>(resolvedObject, "instanceId", "SpringJoint");
+
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector3Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector3Parameter(paramsObject, "connectedAnchor");
+        var axis = ParseOptionalVector3Parameter(paramsObject, "axis");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var spring = ParseOptionalFloatParameter(paramsObject, "spring");
+        var damper = ParseOptionalFloatParameter(paramsObject, "damper");
+        var minDistance = ParseOptionalFloatParameter(paramsObject, "minDistance");
+        var maxDistance = ParseOptionalFloatParameter(paramsObject, "maxDistance");
+        var tolerance = ParseOptionalFloatParameter(paramsObject, "tolerance");
+
+        if (!autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !axis.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !spring.HasValue &&
+            !damper.HasValue &&
+            !minDistance.HasValue &&
+            !maxDistance.HasValue &&
+            !tolerance.HasValue)
+        {
+            throw new ArgumentException("At least one SpringJoint setting must be provided.");
+        }
+
+        ValidateCommonJointSettingValues(breakForce, breakTorque);
+        if (spring.HasValue && spring.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'spring' must be greater than or equal to 0.");
+        }
+
+        if (damper.HasValue && damper.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'damper' must be greater than or equal to 0.");
+        }
+
+        if (minDistance.HasValue && minDistance.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'minDistance' must be greater than or equal to 0.");
+        }
+
+        if (maxDistance.HasValue && maxDistance.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'maxDistance' must be greater than or equal to 0.");
+        }
+
+        if (tolerance.HasValue && tolerance.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'tolerance' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set SpringJoint Settings");
+        ApplyCommonJointSettings(joint, autoConfigureConnectedAnchor, anchor, connectedAnchor, axis, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (spring.HasValue)
+        {
+            joint.spring = spring.Value;
+        }
+
+        if (damper.HasValue)
+        {
+            joint.damper = damper.Value;
+        }
+
+        if (minDistance.HasValue)
+        {
+            joint.minDistance = minDistance.Value;
+        }
+
+        if (maxDistance.HasValue)
+        {
+            joint.maxDistance = maxDistance.Value;
+        }
+
+        if (tolerance.HasValue)
+        {
+            joint.tolerance = tolerance.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateSpringJointSettingsSnapshot(joint),
+            applied = new
+            {
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                axis = axis.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                spring = spring.HasValue,
+                damper = damper.HasValue,
+                minDistance = minDistance.HasValue,
+                maxDistance = maxDistance.HasValue,
+                tolerance = tolerance.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetFixedJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "fixedJoint.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<FixedJoint>(resolvedObject, "instanceId", "FixedJoint");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateFixedJointSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetFixedJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "fixedJoint.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<FixedJoint>(resolvedObject, "instanceId", "FixedJoint");
+
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector3Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector3Parameter(paramsObject, "connectedAnchor");
+        var axis = ParseOptionalVector3Parameter(paramsObject, "axis");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+
+        if (!autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !axis.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue)
+        {
+            throw new ArgumentException("At least one FixedJoint setting must be provided.");
+        }
+
+        ValidateCommonJointSettingValues(breakForce, breakTorque);
+
+        Undo.RecordObject(joint, "UnityMCP Set FixedJoint Settings");
+        ApplyCommonJointSettings(joint, autoConfigureConnectedAnchor, anchor, connectedAnchor, axis, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateFixedJointSettingsSnapshot(joint),
+            applied = new
+            {
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                axis = axis.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildGetConfigurableJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "configurableJoint.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<ConfigurableJoint>(resolvedObject, "instanceId", "ConfigurableJoint");
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateConfigurableJointSettingsSnapshot(joint)
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetConfigurableJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "configurableJoint.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<ConfigurableJoint>(resolvedObject, "instanceId", "ConfigurableJoint");
+
+        var autoConfigureConnectedAnchor = ParseOptionalBooleanValueParameter(paramsObject, "autoConfigureConnectedAnchor");
+        var anchor = ParseOptionalVector3Parameter(paramsObject, "anchor");
+        var connectedAnchor = ParseOptionalVector3Parameter(paramsObject, "connectedAnchor");
+        var axis = ParseOptionalVector3Parameter(paramsObject, "axis");
+        var secondaryAxis = ParseOptionalVector3Parameter(paramsObject, "secondaryAxis");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var connectedBodyInstanceId = ParseOptionalIntegerParameter(paramsObject, "connectedBodyInstanceId");
+        var configuredInWorldSpace = ParseOptionalBooleanValueParameter(paramsObject, "configuredInWorldSpace");
+        var swapBodies = ParseOptionalBooleanValueParameter(paramsObject, "swapBodies");
+        var xMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "xMotion");
+        var yMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "yMotion");
+        var zMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "zMotion");
+        var angularXMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "angularXMotion");
+        var angularYMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "angularYMotion");
+        var angularZMotion = ParseOptionalEnumParameter<ConfigurableJointMotion>(paramsObject, "angularZMotion");
+
+        if (!autoConfigureConnectedAnchor.HasValue &&
+            !anchor.HasValue &&
+            !connectedAnchor.HasValue &&
+            !axis.HasValue &&
+            !secondaryAxis.HasValue &&
+            !enableCollision.HasValue &&
+            !breakForce.HasValue &&
+            !breakTorque.HasValue &&
+            !connectedBodyInstanceId.HasValue &&
+            !configuredInWorldSpace.HasValue &&
+            !swapBodies.HasValue &&
+            !xMotion.HasValue &&
+            !yMotion.HasValue &&
+            !zMotion.HasValue &&
+            !angularXMotion.HasValue &&
+            !angularYMotion.HasValue &&
+            !angularZMotion.HasValue)
+        {
+            throw new ArgumentException("At least one ConfigurableJoint setting must be provided.");
+        }
+
+        ValidateCommonJointSettingValues(breakForce, breakTorque);
+
+        Undo.RecordObject(joint, "UnityMCP Set ConfigurableJoint Settings");
+        ApplyCommonJointSettings(joint, autoConfigureConnectedAnchor, anchor, connectedAnchor, axis, enableCollision, breakForce, breakTorque, connectedBodyInstanceId);
+
+        if (secondaryAxis.HasValue)
+        {
+            joint.secondaryAxis = secondaryAxis.Value;
+        }
+
+        if (configuredInWorldSpace.HasValue)
+        {
+            joint.configuredInWorldSpace = configuredInWorldSpace.Value;
+        }
+
+        if (swapBodies.HasValue)
+        {
+            joint.swapBodies = swapBodies.Value;
+        }
+
+        if (xMotion.HasValue)
+        {
+            joint.xMotion = xMotion.Value;
+        }
+
+        if (yMotion.HasValue)
+        {
+            joint.yMotion = yMotion.Value;
+        }
+
+        if (zMotion.HasValue)
+        {
+            joint.zMotion = zMotion.Value;
+        }
+
+        if (angularXMotion.HasValue)
+        {
+            joint.angularXMotion = angularXMotion.Value;
+        }
+
+        if (angularYMotion.HasValue)
+        {
+            joint.angularYMotion = angularYMotion.Value;
+        }
+
+        if (angularZMotion.HasValue)
+        {
+            joint.angularZMotion = angularZMotion.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = CreateConfigurableJointSettingsSnapshot(joint),
+            applied = new
+            {
+                autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.HasValue,
+                anchor = anchor.HasValue,
+                connectedAnchor = connectedAnchor.HasValue,
+                axis = axis.HasValue,
+                secondaryAxis = secondaryAxis.HasValue,
+                enableCollision = enableCollision.HasValue,
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                connectedBodyInstanceId = connectedBodyInstanceId.HasValue,
+                configuredInWorldSpace = configuredInWorldSpace.HasValue,
+                swapBodies = swapBodies.HasValue,
+                xMotion = xMotion.HasValue,
+                yMotion = yMotion.HasValue,
+                zMotion = zMotion.HasValue,
+                angularXMotion = angularXMotion.HasValue,
+                angularYMotion = angularYMotion.HasValue,
+                angularZMotion = angularZMotion.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
     private static string BuildGetComponentsResponse(JToken idToken, JObject root)
     {
         var paramsObject = RequireParamsObject(root, "scene.getComponents");
@@ -2961,6 +4558,27 @@ internal sealed class UnityMcpClient : IDisposable
         if (!value.HasValue)
         {
             throw new ArgumentException($"Parameter '{parameterName}' must be numeric.");
+        }
+
+        return value.Value;
+    }
+
+    private static int? ParseOptionalIntegerParameter(JObject paramsObject, string parameterName)
+    {
+        if (!paramsObject.TryGetValue(parameterName, out var token))
+        {
+            return null;
+        }
+
+        if (token.Type != JTokenType.Integer)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be an integer.");
+        }
+
+        var value = token.Value<int?>();
+        if (!value.HasValue)
+        {
+            throw new ArgumentException($"Parameter '{parameterName}' must be an integer.");
         }
 
         return value.Value;
@@ -4105,6 +5723,148 @@ internal sealed class UnityMcpClient : IDisposable
         }
     }
 
+    private static void ValidateCommonJoint2DSettingValues(float? breakForce, float? breakTorque)
+    {
+        if (breakForce.HasValue && breakForce.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'breakForce' must be greater than or equal to 0.");
+        }
+
+        if (breakTorque.HasValue && breakTorque.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'breakTorque' must be greater than or equal to 0.");
+        }
+    }
+
+    private static Rigidbody2D ResolveConnectedRigidbody2D(int connectedBodyInstanceId)
+    {
+        var resolvedObject = ResolveObjectByInstanceId(connectedBodyInstanceId, "connectedBodyInstanceId");
+        return ResolveComponentOfTypeTarget<Rigidbody2D>(resolvedObject, "connectedBodyInstanceId", "Rigidbody2D");
+    }
+
+    private static Rigidbody ResolveConnectedRigidbody(int connectedBodyInstanceId)
+    {
+        var resolvedObject = ResolveObjectByInstanceId(connectedBodyInstanceId, "connectedBodyInstanceId");
+        return ResolveComponentOfTypeTarget<Rigidbody>(resolvedObject, "connectedBodyInstanceId", "Rigidbody");
+    }
+
+    private static void ApplyCommonJoint2DSettings(
+        AnchoredJoint2D joint,
+        bool? enabled,
+        bool? autoConfigureConnectedAnchor,
+        Vector2? anchor,
+        Vector2? connectedAnchor,
+        bool? enableCollision,
+        float? breakForce,
+        float? breakTorque,
+        int? connectedBodyInstanceId)
+    {
+        if (enabled.HasValue)
+        {
+            joint.enabled = enabled.Value;
+        }
+
+        if (autoConfigureConnectedAnchor.HasValue)
+        {
+            joint.autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.Value;
+        }
+
+        if (anchor.HasValue)
+        {
+            joint.anchor = anchor.Value;
+        }
+
+        if (connectedAnchor.HasValue)
+        {
+            joint.connectedAnchor = connectedAnchor.Value;
+        }
+
+        if (enableCollision.HasValue)
+        {
+            joint.enableCollision = enableCollision.Value;
+        }
+
+        if (breakForce.HasValue)
+        {
+            joint.breakForce = breakForce.Value;
+        }
+
+        if (breakTorque.HasValue)
+        {
+            joint.breakTorque = breakTorque.Value;
+        }
+
+        if (connectedBodyInstanceId.HasValue)
+        {
+            joint.connectedBody = ResolveConnectedRigidbody2D(connectedBodyInstanceId.Value);
+        }
+    }
+
+    private static void ValidateCommonJointSettingValues(float? breakForce, float? breakTorque)
+    {
+        if (breakForce.HasValue && breakForce.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'breakForce' must be greater than or equal to 0.");
+        }
+
+        if (breakTorque.HasValue && breakTorque.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'breakTorque' must be greater than or equal to 0.");
+        }
+    }
+
+    private static void ApplyCommonJointSettings(
+        Joint joint,
+        bool? autoConfigureConnectedAnchor,
+        Vector3? anchor,
+        Vector3? connectedAnchor,
+        Vector3? axis,
+        bool? enableCollision,
+        float? breakForce,
+        float? breakTorque,
+        int? connectedBodyInstanceId)
+    {
+        if (autoConfigureConnectedAnchor.HasValue)
+        {
+            joint.autoConfigureConnectedAnchor = autoConfigureConnectedAnchor.Value;
+        }
+
+        if (anchor.HasValue)
+        {
+            joint.anchor = anchor.Value;
+        }
+
+        if (connectedAnchor.HasValue)
+        {
+            joint.connectedAnchor = connectedAnchor.Value;
+        }
+
+        if (axis.HasValue)
+        {
+            joint.axis = axis.Value;
+        }
+
+        if (enableCollision.HasValue)
+        {
+            joint.enableCollision = enableCollision.Value;
+        }
+
+        if (breakForce.HasValue)
+        {
+            joint.breakForce = breakForce.Value;
+        }
+
+        if (breakTorque.HasValue)
+        {
+            joint.breakTorque = breakTorque.Value;
+        }
+
+        if (connectedBodyInstanceId.HasValue)
+        {
+            joint.connectedBody = ResolveConnectedRigidbody(connectedBodyInstanceId.Value);
+        }
+    }
+
     private static string GetHierarchyPath(Transform transform)
     {
         var names = new Stack<string>();
@@ -4558,6 +6318,338 @@ internal sealed class UnityMcpClient : IDisposable
             generationType = CreateEnumSummary(collider.generationType),
             pathCount = collider.pathCount,
             pointCount = collider.pointCount
+        };
+    }
+
+    private static object CreateJoint2DSettingsSnapshot(AnchoredJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null
+        };
+    }
+
+    private static object CreateHingeJoint2DSettingsSnapshot(HingeJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            useConnectedAnchor = joint.useConnectedAnchor,
+            useMotor = joint.useMotor,
+            motor = new
+            {
+                motorSpeed = joint.motor.motorSpeed,
+                maxMotorTorque = joint.motor.maxMotorTorque
+            },
+            useLimits = joint.useLimits,
+            limits = new
+            {
+                lowerAngle = joint.limits.min,
+                upperAngle = joint.limits.max
+            },
+            referenceAngle = joint.referenceAngle,
+            jointAngle = joint.jointAngle,
+            jointSpeed = joint.jointSpeed
+        };
+    }
+
+    private static object CreateSpringJoint2DSettingsSnapshot(SpringJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            autoConfigureDistance = joint.autoConfigureDistance,
+            distance = joint.distance,
+            dampingRatio = joint.dampingRatio,
+            frequency = joint.frequency
+        };
+    }
+
+    private static object CreateDistanceJoint2DSettingsSnapshot(DistanceJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            autoConfigureDistance = joint.autoConfigureDistance,
+            distance = joint.distance,
+            maxDistanceOnly = joint.maxDistanceOnly
+        };
+    }
+
+    private static object CreateFixedJoint2DSettingsSnapshot(FixedJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            dampingRatio = joint.dampingRatio,
+            frequency = joint.frequency,
+            referenceAngle = joint.referenceAngle
+        };
+    }
+
+    private static object CreateSliderJoint2DSettingsSnapshot(SliderJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            autoConfigureAngle = joint.autoConfigureAngle,
+            angle = joint.angle,
+            useMotor = joint.useMotor,
+            motor = new
+            {
+                motorSpeed = joint.motor.motorSpeed,
+                maxMotorTorque = joint.motor.maxMotorTorque
+            },
+            useLimits = joint.useLimits,
+            limits = new
+            {
+                lowerTranslation = joint.limits.min,
+                upperTranslation = joint.limits.max
+            },
+            limitState = CreateEnumSummary(joint.limitState),
+            referenceAngle = joint.referenceAngle,
+            jointTranslation = joint.jointTranslation,
+            jointSpeed = joint.jointSpeed
+        };
+    }
+
+    private static object CreateWheelJoint2DSettingsSnapshot(WheelJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector2Array(joint.anchor),
+            connectedAnchor = CreateVector2Array(joint.connectedAnchor),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            useMotor = joint.useMotor,
+            motor = new
+            {
+                motorSpeed = joint.motor.motorSpeed,
+                maxMotorTorque = joint.motor.maxMotorTorque
+            },
+            suspension = new
+            {
+                dampingRatio = joint.suspension.dampingRatio,
+                frequency = joint.suspension.frequency,
+                angle = joint.suspension.angle
+            },
+            jointTranslation = joint.jointTranslation,
+            jointLinearSpeed = joint.jointLinearSpeed
+        };
+    }
+
+    private static object CreateTargetJoint2DSettingsSnapshot(TargetJoint2D joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            enabled = joint.enabled,
+            anchor = CreateVector2Array(joint.anchor),
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            reactionForce = CreateVector2Array(joint.reactionForce),
+            reactionTorque = joint.reactionTorque,
+            autoConfigureTarget = joint.autoConfigureTarget,
+            target = CreateVector2Array(joint.target),
+            maxForce = joint.maxForce,
+            dampingRatio = joint.dampingRatio,
+            frequency = joint.frequency
+        };
+    }
+
+    private static object CreateJointSettingsSnapshot(Joint joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector3Array(joint.anchor),
+            connectedAnchor = CreateVector3Array(joint.connectedAnchor),
+            axis = CreateVector3Array(joint.axis),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            currentForce = CreateVector3Array(joint.currentForce),
+            currentTorque = CreateVector3Array(joint.currentTorque),
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null
+        };
+    }
+
+    private static object CreateHingeJointSettingsSnapshot(HingeJoint joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector3Array(joint.anchor),
+            connectedAnchor = CreateVector3Array(joint.connectedAnchor),
+            axis = CreateVector3Array(joint.axis),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            currentForce = CreateVector3Array(joint.currentForce),
+            currentTorque = CreateVector3Array(joint.currentTorque),
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            useSpring = joint.useSpring,
+            spring = new
+            {
+                spring = joint.spring.spring,
+                damper = joint.spring.damper,
+                targetPosition = joint.spring.targetPosition
+            },
+            useMotor = joint.useMotor,
+            motor = new
+            {
+                targetVelocity = joint.motor.targetVelocity,
+                force = joint.motor.force,
+                freeSpin = joint.motor.freeSpin
+            },
+            useLimits = joint.useLimits,
+            limits = new
+            {
+                minLimit = joint.limits.min,
+                maxLimit = joint.limits.max,
+                bounciness = joint.limits.bounciness,
+                bounceMinVelocity = joint.limits.bounceMinVelocity,
+                contactDistance = joint.limits.contactDistance
+            },
+            angle = joint.angle,
+            velocity = joint.velocity
+        };
+    }
+
+    private static object CreateSpringJointSettingsSnapshot(SpringJoint joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector3Array(joint.anchor),
+            connectedAnchor = CreateVector3Array(joint.connectedAnchor),
+            axis = CreateVector3Array(joint.axis),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            currentForce = CreateVector3Array(joint.currentForce),
+            currentTorque = CreateVector3Array(joint.currentTorque),
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            spring = joint.spring,
+            damper = joint.damper,
+            minDistance = joint.minDistance,
+            maxDistance = joint.maxDistance,
+            tolerance = joint.tolerance
+        };
+    }
+
+    private static object CreateFixedJointSettingsSnapshot(FixedJoint joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector3Array(joint.anchor),
+            connectedAnchor = CreateVector3Array(joint.connectedAnchor),
+            axis = CreateVector3Array(joint.axis),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            currentForce = CreateVector3Array(joint.currentForce),
+            currentTorque = CreateVector3Array(joint.currentTorque),
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null
+        };
+    }
+
+    private static object CreateConfigurableJointSettingsSnapshot(ConfigurableJoint joint)
+    {
+        return new
+        {
+            jointType = joint.GetType().FullName,
+            autoConfigureConnectedAnchor = joint.autoConfigureConnectedAnchor,
+            anchor = CreateVector3Array(joint.anchor),
+            connectedAnchor = CreateVector3Array(joint.connectedAnchor),
+            axis = CreateVector3Array(joint.axis),
+            secondaryAxis = CreateVector3Array(joint.secondaryAxis),
+            enableCollision = joint.enableCollision,
+            breakForce = joint.breakForce,
+            breakTorque = joint.breakTorque,
+            currentForce = CreateVector3Array(joint.currentForce),
+            currentTorque = CreateVector3Array(joint.currentTorque),
+            connectedBody = joint.connectedBody != null ? CreateObjectSummary(joint.connectedBody) : null,
+            configuredInWorldSpace = joint.configuredInWorldSpace,
+            swapBodies = joint.swapBodies,
+            xMotion = CreateEnumSummary(joint.xMotion),
+            yMotion = CreateEnumSummary(joint.yMotion),
+            zMotion = CreateEnumSummary(joint.zMotion),
+            angularXMotion = CreateEnumSummary(joint.angularXMotion),
+            angularYMotion = CreateEnumSummary(joint.angularYMotion),
+            angularZMotion = CreateEnumSummary(joint.angularZMotion)
         };
     }
 

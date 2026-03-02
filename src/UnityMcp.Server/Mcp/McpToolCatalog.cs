@@ -611,6 +611,337 @@ public sealed class McpToolCatalog
                     }
                 }),
             new McpToolDefinition(
+                "hingeJoint2D.getSettings",
+                "Returns HingeJoint2D settings for a HingeJoint2D target (or a GameObject with a single HingeJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a HingeJoint2D component or a GameObject with a single HingeJoint2D.")),
+            new McpToolDefinition(
+                "hingeJoint2D.setSettings",
+                "Mutates HingeJoint2D settings using direct Unity HingeJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("HingeJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("HingeJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["useConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["useMotor"] = new JsonObject { ["type"] = "boolean" },
+                        ["motorSpeed"] = new JsonObject { ["type"] = "number" },
+                        ["maxMotorTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["useLimits"] = new JsonObject { ["type"] = "boolean" },
+                        ["lowerAngle"] = new JsonObject { ["type"] = "number" },
+                        ["upperAngle"] = new JsonObject { ["type"] = "number" }
+                    }
+                }),
+            new McpToolDefinition(
+                "springJoint2D.getSettings",
+                "Returns SpringJoint2D settings for a SpringJoint2D target (or a GameObject with a single SpringJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a SpringJoint2D component or a GameObject with a single SpringJoint2D.")),
+            new McpToolDefinition(
+                "springJoint2D.setSettings",
+                "Mutates SpringJoint2D settings using direct Unity SpringJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("SpringJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("SpringJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureDistance"] = new JsonObject { ["type"] = "boolean" },
+                        ["distance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["dampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["frequency"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "distanceJoint2D.getSettings",
+                "Returns DistanceJoint2D settings for a DistanceJoint2D target (or a GameObject with a single DistanceJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a DistanceJoint2D component or a GameObject with a single DistanceJoint2D.")),
+            new McpToolDefinition(
+                "distanceJoint2D.setSettings",
+                "Mutates DistanceJoint2D settings using direct Unity DistanceJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("DistanceJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("DistanceJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureDistance"] = new JsonObject { ["type"] = "boolean" },
+                        ["distance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["maxDistanceOnly"] = new JsonObject { ["type"] = "boolean" }
+                    }
+                }),
+            new McpToolDefinition(
+                "fixedJoint2D.getSettings",
+                "Returns FixedJoint2D settings for a FixedJoint2D target (or a GameObject with a single FixedJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a FixedJoint2D component or a GameObject with a single FixedJoint2D.")),
+            new McpToolDefinition(
+                "fixedJoint2D.setSettings",
+                "Mutates FixedJoint2D settings using direct Unity FixedJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("FixedJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("FixedJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["dampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["frequency"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "sliderJoint2D.getSettings",
+                "Returns SliderJoint2D settings for a SliderJoint2D target (or a GameObject with a single SliderJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a SliderJoint2D component or a GameObject with a single SliderJoint2D.")),
+            new McpToolDefinition(
+                "sliderJoint2D.setSettings",
+                "Mutates SliderJoint2D settings using direct Unity SliderJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("SliderJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("SliderJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureAngle"] = new JsonObject { ["type"] = "boolean" },
+                        ["angle"] = new JsonObject { ["type"] = "number" },
+                        ["useMotor"] = new JsonObject { ["type"] = "boolean" },
+                        ["motorSpeed"] = new JsonObject { ["type"] = "number" },
+                        ["maxMotorTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["useLimits"] = new JsonObject { ["type"] = "boolean" },
+                        ["lowerTranslation"] = new JsonObject { ["type"] = "number" },
+                        ["upperTranslation"] = new JsonObject { ["type"] = "number" }
+                    }
+                }),
+            new McpToolDefinition(
+                "wheelJoint2D.getSettings",
+                "Returns WheelJoint2D settings for a WheelJoint2D target (or a GameObject with a single WheelJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a WheelJoint2D component or a GameObject with a single WheelJoint2D.")),
+            new McpToolDefinition(
+                "wheelJoint2D.setSettings",
+                "Mutates WheelJoint2D settings using direct Unity WheelJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("WheelJoint2D anchor [x,y]."),
+                        ["connectedAnchor"] = Vector2Schema("WheelJoint2D connected anchor [x,y]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["useMotor"] = new JsonObject { ["type"] = "boolean" },
+                        ["motorSpeed"] = new JsonObject { ["type"] = "number" },
+                        ["maxMotorTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["suspensionDampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["suspensionFrequency"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["suspensionAngle"] = new JsonObject { ["type"] = "number" }
+                    }
+                }),
+            new McpToolDefinition(
+                "targetJoint2D.getSettings",
+                "Returns TargetJoint2D settings for a TargetJoint2D target (or a GameObject with a single TargetJoint2D).",
+                InstanceIdOnlySchema("Unity instance id of a TargetJoint2D component or a GameObject with a single TargetJoint2D.")),
+            new McpToolDefinition(
+                "targetJoint2D.setSettings",
+                "Mutates TargetJoint2D settings using direct Unity TargetJoint2D APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector2Schema("TargetJoint2D anchor [x,y]."),
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["autoConfigureTarget"] = new JsonObject { ["type"] = "boolean" },
+                        ["target"] = Vector2Schema("TargetJoint2D world target [x,y]."),
+                        ["maxForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["dampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["frequency"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "hingeJoint.getSettings",
+                "Returns HingeJoint settings for a HingeJoint target (or a GameObject with a single HingeJoint).",
+                InstanceIdOnlySchema("Unity instance id of a HingeJoint component or a GameObject with a single HingeJoint.")),
+            new McpToolDefinition(
+                "hingeJoint.setSettings",
+                "Mutates HingeJoint settings using direct Unity HingeJoint APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector3Schema("HingeJoint anchor [x,y,z]."),
+                        ["connectedAnchor"] = Vector3Schema("HingeJoint connected anchor [x,y,z]."),
+                        ["axis"] = Vector3Schema("HingeJoint axis [x,y,z]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["useSpring"] = new JsonObject { ["type"] = "boolean" },
+                        ["spring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["damper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["targetPosition"] = new JsonObject { ["type"] = "number" },
+                        ["useMotor"] = new JsonObject { ["type"] = "boolean" },
+                        ["motorTargetVelocity"] = new JsonObject { ["type"] = "number" },
+                        ["motorForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["motorFreeSpin"] = new JsonObject { ["type"] = "boolean" },
+                        ["useLimits"] = new JsonObject { ["type"] = "boolean" },
+                        ["minLimit"] = new JsonObject { ["type"] = "number" },
+                        ["maxLimit"] = new JsonObject { ["type"] = "number" }
+                    }
+                }),
+            new McpToolDefinition(
+                "springJoint.getSettings",
+                "Returns SpringJoint settings for a SpringJoint target (or a GameObject with a single SpringJoint).",
+                InstanceIdOnlySchema("Unity instance id of a SpringJoint component or a GameObject with a single SpringJoint.")),
+            new McpToolDefinition(
+                "springJoint.setSettings",
+                "Mutates SpringJoint settings using direct Unity SpringJoint APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector3Schema("SpringJoint anchor [x,y,z]."),
+                        ["connectedAnchor"] = Vector3Schema("SpringJoint connected anchor [x,y,z]."),
+                        ["axis"] = Vector3Schema("SpringJoint axis [x,y,z]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["spring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["damper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["minDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["maxDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["tolerance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "fixedJoint.getSettings",
+                "Returns FixedJoint settings for a FixedJoint target (or a GameObject with a single FixedJoint).",
+                InstanceIdOnlySchema("Unity instance id of a FixedJoint component or a GameObject with a single FixedJoint.")),
+            new McpToolDefinition(
+                "fixedJoint.setSettings",
+                "Mutates FixedJoint settings using direct Unity FixedJoint APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector3Schema("FixedJoint anchor [x,y,z]."),
+                        ["connectedAnchor"] = Vector3Schema("FixedJoint connected anchor [x,y,z]."),
+                        ["axis"] = Vector3Schema("FixedJoint axis [x,y,z]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" }
+                    }
+                }),
+            new McpToolDefinition(
+                "configurableJoint.getSettings",
+                "Returns a safe ConfigurableJoint settings subset for a ConfigurableJoint target (or a GameObject with a single ConfigurableJoint).",
+                InstanceIdOnlySchema("Unity instance id of a ConfigurableJoint component or a GameObject with a single ConfigurableJoint.")),
+            new McpToolDefinition(
+                "configurableJoint.setSettings",
+                "Mutates a safe ConfigurableJoint settings subset using direct Unity ConfigurableJoint APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector3Schema("ConfigurableJoint anchor [x,y,z]."),
+                        ["connectedAnchor"] = Vector3Schema("ConfigurableJoint connected anchor [x,y,z]."),
+                        ["axis"] = Vector3Schema("ConfigurableJoint axis [x,y,z]."),
+                        ["secondaryAxis"] = Vector3Schema("ConfigurableJoint secondary axis [x,y,z]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["configuredInWorldSpace"] = new JsonObject { ["type"] = "boolean" },
+                        ["swapBodies"] = new JsonObject { ["type"] = "boolean" },
+                        ["xMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["yMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["zMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["angularXMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["angularYMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["angularZMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value.")
+                    }
+                }),
+            new McpToolDefinition(
                 "scene.getComponents",
                 "Returns component metadata for the target GameObject (or a Component's owner GameObject).",
                 new JsonObject

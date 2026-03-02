@@ -9,9 +9,14 @@ namespace UnityMcp.Editor
 [InitializeOnLoad]
 internal static class UnityMcpBootstrap
 {
+    private const int AutoStartMaxAttempts = 10;
+
+    private static int _remainingAutoStartAttempts;
+
     static UnityMcpBootstrap()
     {
         UnityMcpConsoleLogBuffer.EnsureInitialized();
+        _remainingAutoStartAttempts = AutoStartMaxAttempts;
         EditorApplication.delayCall += StartBridgeOnDelayCall;
         AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
         EditorApplication.quitting += OnEditorQuitting;
@@ -44,6 +49,20 @@ internal static class UnityMcpBootstrap
     private static void StartBridgeOnDelayCall()
     {
         UnityMcpClient.Instance.Start();
+
+        if (UnityMcpClient.Instance.IsRunning)
+        {
+            _remainingAutoStartAttempts = 0;
+            return;
+        }
+
+        if (_remainingAutoStartAttempts <= 0)
+        {
+            return;
+        }
+
+        _remainingAutoStartAttempts--;
+        EditorApplication.delayCall += StartBridgeOnDelayCall;
     }
 }
 }

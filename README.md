@@ -239,6 +239,19 @@ Selection tool note:
   - `polygonCollider2D.setSettings` currently supports base `Collider2D` fields only
   - `edgeCollider2D.setSettings` adds `edgeRadius`
   - `compositeCollider2D.setSettings` adds `geometryType` / `generationType` (safe subset)
+- Common 2D joint convenience wrappers are available:
+  - `hingeJoint2D.*`, `springJoint2D.*`, `distanceJoint2D.*`, `fixedJoint2D.*`
+  - `sliderJoint2D.*`, `wheelJoint2D.*`, `targetJoint2D.*`
+- `connectedBodyInstanceId` is supported on anchored Joint2D setters (`hingeJoint2D.*`, `springJoint2D.*`, `distanceJoint2D.*`, `fixedJoint2D.*`, `sliderJoint2D.*`, `wheelJoint2D.*`).
+- `targetJoint2D.*` does not expose `connectedBodyInstanceId` because `TargetJoint2D` is target-driven rather than body-linked in the same way as the anchored joint families.
+- Common 3D joint convenience wrappers are available:
+  - `hingeJoint.*`, `springJoint.*`, `fixedJoint.*`, `configurableJoint.*`
+- `configurableJoint.*` currently exposes a safe MVP subset:
+  - shared joint fields
+  - `secondaryAxis`
+  - `configuredInWorldSpace`
+  - `swapBodies`
+  - linear/angular motion modes
 - `collider.setSettings` currently supports BoxCollider-specific `center` / `size` fields in addition to base collider fields.
 - Subtype collider wrappers are available for `BoxCollider`, `SphereCollider`, `CapsuleCollider`, and `MeshCollider`:
   - `boxCollider.*`, `sphereCollider.*`, `capsuleCollider.*`, `meshCollider.*`

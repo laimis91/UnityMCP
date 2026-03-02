@@ -95,6 +95,28 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "edgeCollider2D.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "compositeCollider2D.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "compositeCollider2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "hingeJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "hingeJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "springJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "springJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "distanceJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "distanceJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "sliderJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "sliderJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "wheelJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "wheelJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "targetJoint2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "targetJoint2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "hingeJoint.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "hingeJoint.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "springJoint.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "springJoint.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "configurableJoint.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "configurableJoint.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.destroyObject");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponentProperties");
@@ -1572,6 +1594,150 @@ public sealed class McpRequestHandlerTests
             var forwardedParams = forwarded.RootElement.GetProperty("params");
             Assert.Equal("Outlines", forwardedParams.GetProperty("geometryType").GetString());
             Assert.Equal("Manual", forwardedParams.GetProperty("generationType").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":"hinge2d-get-1","method":"tools/call","params":{"name":"hingeJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "hingeJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"spring2d-get-1","method":"tools/call","params":{"name":"springJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "springJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"distance2d-get-1","method":"tools/call","params":{"name":"distanceJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "distanceJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"fixed2d-get-1","method":"tools/call","params":{"name":"fixedJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "fixedJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"slider2d-get-1","method":"tools/call","params":{"name":"sliderJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "sliderJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"wheel2d-get-1","method":"tools/call","params":{"name":"wheelJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "wheelJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"target2d-get-1","method":"tools/call","params":{"name":"targetJoint2D.getSettings","arguments":{"instanceId":45444}}}""", "targetJoint2D.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"hinge3d-get-1","method":"tools/call","params":{"name":"hingeJoint.getSettings","arguments":{"instanceId":45444}}}""", "hingeJoint.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"spring3d-get-1","method":"tools/call","params":{"name":"springJoint.getSettings","arguments":{"instanceId":45444}}}""", "springJoint.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"fixed3d-get-1","method":"tools/call","params":{"name":"fixedJoint.getSettings","arguments":{"instanceId":45444}}}""", "fixedJoint.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"config3d-get-1","method":"tools/call","params":{"name":"configurableJoint.getSettings","arguments":{"instanceId":45444}}}""", "configurableJoint.getSettings")]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsJoint2DGetSettings(string requestJson, string expectedMethod)
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJsonValue, _, _) =>
+        {
+            forwardedRequestJson = requestJsonValue;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"settings":{"ok":true}}}""");
+        });
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal(expectedMethod, forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":"hinge2d-set-1","method":"tools/call","params":{"name":"hingeJoint2D.setSettings","arguments":{"instanceId":45444,"useMotor":true}}}""", "hingeJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"spring2d-set-1","method":"tools/call","params":{"name":"springJoint2D.setSettings","arguments":{"instanceId":45444,"distance":2.0}}}""", "springJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"distance2d-set-1","method":"tools/call","params":{"name":"distanceJoint2D.setSettings","arguments":{"instanceId":45444,"maxDistanceOnly":true}}}""", "distanceJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"fixed2d-set-1","method":"tools/call","params":{"name":"fixedJoint2D.setSettings","arguments":{"instanceId":45444,"frequency":5.0}}}""", "fixedJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"slider2d-set-1","method":"tools/call","params":{"name":"sliderJoint2D.setSettings","arguments":{"instanceId":45444,"useLimits":true}}}""", "sliderJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"wheel2d-set-1","method":"tools/call","params":{"name":"wheelJoint2D.setSettings","arguments":{"instanceId":45444,"useMotor":true}}}""", "wheelJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"target2d-set-1","method":"tools/call","params":{"name":"targetJoint2D.setSettings","arguments":{"instanceId":45444,"maxForce":10.0}}}""", "targetJoint2D.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"hinge3d-set-1","method":"tools/call","params":{"name":"hingeJoint.setSettings","arguments":{"instanceId":45444,"useMotor":true}}}""", "hingeJoint.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"spring3d-set-1","method":"tools/call","params":{"name":"springJoint.setSettings","arguments":{"instanceId":45444,"spring":10.0}}}""", "springJoint.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"fixed3d-set-1","method":"tools/call","params":{"name":"fixedJoint.setSettings","arguments":{"instanceId":45444,"breakForce":5.0}}}""", "fixedJoint.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"config3d-set-1","method":"tools/call","params":{"name":"configurableJoint.setSettings","arguments":{"instanceId":45444,"xMotion":"Locked"}}}""", "configurableJoint.setSettings")]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsJoint2DSetSettings(string requestJson, string expectedMethod)
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJsonValue, _, _) =>
+        {
+            forwardedRequestJson = requestJsonValue;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"ok":true}}}""");
+        });
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal(expectedMethod, forwarded.RootElement.GetProperty("method").GetString());
+            Assert.Equal(45444, forwarded.RootElement.GetProperty("params").GetProperty("instanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsHingeJoint2DSetSettings_WithMotorAndLimits()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"useMotor":true,"motorSpeed":true,"maxMotorTorque":true,"useLimits":true,"lowerAngle":true,"upperAngle":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"hinge2d-set-detailed-1","method":"tools/call","params":{"name":"hingeJoint2D.setSettings","arguments":{"instanceId":45444,"useMotor":true,"motorSpeed":120.0,"maxMotorTorque":15.0,"useLimits":true,"lowerAngle":-30.0,"upperAngle":45.0}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("hingeJoint2D.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.True(forwardedParams.GetProperty("useMotor").GetBoolean());
+            Assert.Equal(120.0, forwardedParams.GetProperty("motorSpeed").GetDouble(), 3);
+            Assert.Equal(15.0, forwardedParams.GetProperty("maxMotorTorque").GetDouble(), 3);
+            Assert.True(forwardedParams.GetProperty("useLimits").GetBoolean());
+            Assert.Equal(-30.0, forwardedParams.GetProperty("lowerAngle").GetDouble(), 3);
+            Assert.Equal(45.0, forwardedParams.GetProperty("upperAngle").GetDouble(), 3);
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsJoint2DSetSettings_WithConnectedBodyInstanceId()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"connectedBodyInstanceId":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"spring2d-set-connected-1","method":"tools/call","params":{"name":"springJoint2D.setSettings","arguments":{"instanceId":45444,"connectedBodyInstanceId":45555}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("springJoint2D.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(45555, forwardedParams.GetProperty("connectedBodyInstanceId").GetInt32());
         }
 
         using var document = JsonDocument.Parse(response.Body!);

@@ -115,6 +115,8 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "springJoint.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "fixedJoint.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "characterJoint.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "characterJoint.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "configurableJoint.getSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "configurableJoint.setSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getComponents");
@@ -132,6 +134,42 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.import");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.ping");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.reveal");
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ReturnsJointToolSchemas_WhenRequested()
+    {
+        // Arrange
+        var handler = CreateHandler((_, _, _) => throw new InvalidOperationException("Relay should not be called."));
+        const string requestJson = """{"jsonrpc":"2.0","id":"list-schema-1","method":"tools/list"}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        using var document = JsonDocument.Parse(response.Body!);
+        var tools = document.RootElement.GetProperty("result").GetProperty("tools");
+
+        var characterJointSetSettings = tools.EnumerateArray().First(tool => tool.GetProperty("name").GetString() == "characterJoint.setSettings");
+        var characterJointProperties = characterJointSetSettings.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(characterJointProperties.TryGetProperty("connectedAnchorMode", out var characterConnectedAnchorMode));
+        Assert.Equal(JsonValueKind.Array, characterConnectedAnchorMode.GetProperty("enum").ValueKind);
+        Assert.True(characterJointProperties.TryGetProperty("connectedBodyInstanceId", out var characterConnectedBodyInstanceId));
+        var characterConnectedBodyTypes = characterConnectedBodyInstanceId.GetProperty("type").EnumerateArray().Select(item => item.GetString()).ToArray();
+        Assert.Contains("integer", characterConnectedBodyTypes);
+        Assert.Contains("null", characterConnectedBodyTypes);
+        Assert.True(characterJointProperties.TryGetProperty("twistLimitSpring", out _));
+        Assert.True(characterJointProperties.TryGetProperty("swing1Limit", out _));
+
+        var configurableJointSetSettings = tools.EnumerateArray().First(tool => tool.GetProperty("name").GetString() == "configurableJoint.setSettings");
+        var configurableProperties = configurableJointSetSettings.GetProperty("inputSchema").GetProperty("properties");
+        Assert.True(configurableProperties.TryGetProperty("linearLimit", out var linearLimit));
+        Assert.Equal("object", linearLimit.GetProperty("type").GetString());
+        Assert.True(configurableProperties.TryGetProperty("xDrive", out var xDrive));
+        Assert.Equal("object", xDrive.GetProperty("type").GetString());
+        Assert.True(configurableProperties.TryGetProperty("projectionMode", out _));
+        Assert.True(configurableProperties.TryGetProperty("connectedAnchorMode", out _));
     }
 
     [Fact]
@@ -1611,6 +1649,7 @@ public sealed class McpRequestHandlerTests
     [InlineData("""{"jsonrpc":"2.0","id":"hinge3d-get-1","method":"tools/call","params":{"name":"hingeJoint.getSettings","arguments":{"instanceId":45444}}}""", "hingeJoint.getSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"spring3d-get-1","method":"tools/call","params":{"name":"springJoint.getSettings","arguments":{"instanceId":45444}}}""", "springJoint.getSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"fixed3d-get-1","method":"tools/call","params":{"name":"fixedJoint.getSettings","arguments":{"instanceId":45444}}}""", "fixedJoint.getSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"character3d-get-1","method":"tools/call","params":{"name":"characterJoint.getSettings","arguments":{"instanceId":45444}}}""", "characterJoint.getSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"config3d-get-1","method":"tools/call","params":{"name":"configurableJoint.getSettings","arguments":{"instanceId":45444}}}""", "configurableJoint.getSettings")]
     public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsJoint2DGetSettings(string requestJson, string expectedMethod)
     {
@@ -1649,6 +1688,7 @@ public sealed class McpRequestHandlerTests
     [InlineData("""{"jsonrpc":"2.0","id":"hinge3d-set-1","method":"tools/call","params":{"name":"hingeJoint.setSettings","arguments":{"instanceId":45444,"useMotor":true}}}""", "hingeJoint.setSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"spring3d-set-1","method":"tools/call","params":{"name":"springJoint.setSettings","arguments":{"instanceId":45444,"spring":10.0}}}""", "springJoint.setSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"fixed3d-set-1","method":"tools/call","params":{"name":"fixedJoint.setSettings","arguments":{"instanceId":45444,"breakForce":5.0}}}""", "fixedJoint.setSettings")]
+    [InlineData("""{"jsonrpc":"2.0","id":"character3d-set-1","method":"tools/call","params":{"name":"characterJoint.setSettings","arguments":{"instanceId":45444,"enableProjection":true}}}""", "characterJoint.setSettings")]
     [InlineData("""{"jsonrpc":"2.0","id":"config3d-set-1","method":"tools/call","params":{"name":"configurableJoint.setSettings","arguments":{"instanceId":45444,"xMotion":"Locked"}}}""", "configurableJoint.setSettings")]
     public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsJoint2DSetSettings(string requestJson, string expectedMethod)
     {
@@ -1738,6 +1778,77 @@ public sealed class McpRequestHandlerTests
             var forwardedParams = forwarded.RootElement.GetProperty("params");
             Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
             Assert.Equal(45555, forwardedParams.GetProperty("connectedBodyInstanceId").GetInt32());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallClearsConnectedBodyAndUsesConnectedAnchorMode()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"connectedBodyInstanceId":null,"connectedAnchorMode":"zero"}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"fixed3d-set-connected-clear-1","method":"tools/call","params":{"name":"fixedJoint.setSettings","arguments":{"instanceId":45444,"connectedBodyInstanceId":null,"connectedAnchorMode":"zero"}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("fixedJoint.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(JsonValueKind.Null, forwardedParams.GetProperty("connectedBodyInstanceId").ValueKind);
+            Assert.Equal("zero", forwardedParams.GetProperty("connectedAnchorMode").GetString());
+        }
+
+        using var document = JsonDocument.Parse(response.Body!);
+        Assert.False(document.RootElement.GetProperty("result").GetProperty("isError").GetBoolean());
+    }
+
+    [Fact]
+    public async Task HandlePostAsync_ForwardsUnityRequest_WhenToolCallTargetsExpandedConfigurableJointSettings()
+    {
+        // Arrange
+        string? forwardedRequestJson = null;
+        var handler = CreateHandler((requestJson, _, _) =>
+        {
+            forwardedRequestJson = requestJson;
+            return Task.FromResult("""{"jsonrpc":"2.0","id":"mcp-1","result":{"applied":{"linearLimit":true,"xDrive":true,"projectionMode":true}}}""");
+        });
+
+        const string requestJson =
+            """{"jsonrpc":"2.0","id":"config3d-set-detailed-1","method":"tools/call","params":{"name":"configurableJoint.setSettings","arguments":{"instanceId":45444,"linearLimit":{"limit":1.5,"bounciness":0.25,"contactDistance":0.05},"targetPosition":[1.0,2.0,3.0],"rotationDriveMode":"Slerp","xDrive":{"positionSpring":5.0,"positionDamper":1.5,"maximumForce":10.0},"projectionMode":"PositionAndRotation","projectionDistance":0.1,"projectionAngle":15.0}}}""";
+
+        // Act
+        var response = await handler.HandlePostAsync(requestJson, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(200, response.StatusCode);
+        Assert.NotNull(forwardedRequestJson);
+        using (var forwarded = JsonDocument.Parse(forwardedRequestJson!))
+        {
+            Assert.Equal("configurableJoint.setSettings", forwarded.RootElement.GetProperty("method").GetString());
+            var forwardedParams = forwarded.RootElement.GetProperty("params");
+            Assert.Equal(45444, forwardedParams.GetProperty("instanceId").GetInt32());
+            Assert.Equal(1.5, forwardedParams.GetProperty("linearLimit").GetProperty("limit").GetDouble(), 3);
+            Assert.Equal(0.25, forwardedParams.GetProperty("linearLimit").GetProperty("bounciness").GetDouble(), 3);
+            Assert.Equal(0.05, forwardedParams.GetProperty("linearLimit").GetProperty("contactDistance").GetDouble(), 3);
+            Assert.Equal("Slerp", forwardedParams.GetProperty("rotationDriveMode").GetString());
+            Assert.Equal(5.0, forwardedParams.GetProperty("xDrive").GetProperty("positionSpring").GetDouble(), 3);
+            Assert.Equal(0.1, forwardedParams.GetProperty("projectionDistance").GetDouble(), 3);
+            Assert.Equal(15.0, forwardedParams.GetProperty("projectionAngle").GetDouble(), 3);
         }
 
         using var document = JsonDocument.Parse(response.Body!);

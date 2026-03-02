@@ -245,13 +245,19 @@ Selection tool note:
 - `connectedBodyInstanceId` is supported on anchored Joint2D setters (`hingeJoint2D.*`, `springJoint2D.*`, `distanceJoint2D.*`, `fixedJoint2D.*`, `sliderJoint2D.*`, `wheelJoint2D.*`).
 - `targetJoint2D.*` does not expose `connectedBodyInstanceId` because `TargetJoint2D` is target-driven rather than body-linked in the same way as the anchored joint families.
 - Common 3D joint convenience wrappers are available:
-  - `hingeJoint.*`, `springJoint.*`, `fixedJoint.*`, `configurableJoint.*`
-- `configurableJoint.*` currently exposes a safe MVP subset:
-  - shared joint fields
-  - `secondaryAxis`
-  - `configuredInWorldSpace`
-  - `swapBodies`
+  - `hingeJoint.*`, `springJoint.*`, `fixedJoint.*`, `characterJoint.*`, `configurableJoint.*`
+- Anchored `Joint2D` setters and the supported 3D joint setters accept `connectedBodyInstanceId` as either a matching rigidbody/component target or `null` to clear the connection.
+- Those same anchored-joint setters also accept `connectedAnchorMode` with `preserve`, `auto`, `zero`, and `matchAnchor` helper behavior.
+- `characterJoint.*` exposes shared `Joint` fields plus swing axis, projection/preprocessing flags, and practical twist/swing spring-limit editing.
+- `configurableJoint.*` now exposes a practical editing subset:
+  - shared joint fields plus `secondaryAxis`
+  - `configuredInWorldSpace` and `swapBodies`
   - linear/angular motion modes
+  - linear/angular limits
+  - target position and target velocities
+  - `rotationDriveMode` plus x/y/z/angular/slerp drives
+  - projection mode, distance, and angle
+  - `targetRotation` helpers remain intentionally out of scope
 - `collider.setSettings` currently supports BoxCollider-specific `center` / `size` fields in addition to base collider fields.
 - Subtype collider wrappers are available for `BoxCollider`, `SphereCollider`, `CapsuleCollider`, and `MeshCollider`:
   - `boxCollider.*`, `sphereCollider.*`, `capsuleCollider.*`, `meshCollider.*`

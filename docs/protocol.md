@@ -248,37 +248,48 @@
     - `generationType`
 - `hingeJoint2D.getSettings` / `hingeJoint2D.setSettings`
   - Typed convenience wrappers for `HingeJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `useConnectedAnchor`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `useLimits`, `lowerAngle`, and `upperAngle`.
+  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `useConnectedAnchor`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `useLimits`, `lowerAngle`, and `upperAngle`.
 - `springJoint2D.getSettings` / `springJoint2D.setSettings`
   - Typed convenience wrappers for `SpringJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `autoConfigureDistance`, `distance`, `dampingRatio`, and `frequency`.
+  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `autoConfigureDistance`, `distance`, `dampingRatio`, and `frequency`.
 - `distanceJoint2D.getSettings` / `distanceJoint2D.setSettings`
   - Typed convenience wrappers for `DistanceJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `autoConfigureDistance`, `distance`, and `maxDistanceOnly`.
+  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `autoConfigureDistance`, `distance`, and `maxDistanceOnly`.
 - `fixedJoint2D.getSettings` / `fixedJoint2D.setSettings`
   - Typed convenience wrappers for `FixedJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `dampingRatio`, `frequency`, and `connectedBodyInstanceId`.
+  - `setSettings` supports base `Joint2D` fields plus `dampingRatio`, `frequency`, `connectedBodyInstanceId`, and `connectedAnchorMode`.
 - `sliderJoint2D.getSettings` / `sliderJoint2D.setSettings`
   - Typed convenience wrappers for `SliderJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `autoConfigureAngle`, `angle`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `useLimits`, `lowerTranslation`, and `upperTranslation`.
+  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `autoConfigureAngle`, `angle`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `useLimits`, `lowerTranslation`, and `upperTranslation`.
 - `wheelJoint2D.getSettings` / `wheelJoint2D.setSettings`
   - Typed convenience wrappers for `WheelJoint2D`.
-  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `suspensionDampingRatio`, `suspensionFrequency`, and `suspensionAngle`.
+  - `setSettings` supports base `Joint2D` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `useMotor`, `motorSpeed`, `maxMotorTorque`, `suspensionDampingRatio`, `suspensionFrequency`, and `suspensionAngle`.
 - `targetJoint2D.getSettings` / `targetJoint2D.setSettings`
   - Typed convenience wrappers for `TargetJoint2D`.
   - `setSettings` supports `anchor`, `autoConfigureTarget`, `target`, `maxForce`, `dampingRatio`, and `frequency`.
 - `hingeJoint.getSettings` / `hingeJoint.setSettings`
   - Typed convenience wrappers for `HingeJoint`.
-  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, spring, motor, and limit controls.
+  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, spring, motor, and limit controls.
 - `springJoint.getSettings` / `springJoint.setSettings`
   - Typed convenience wrappers for `SpringJoint`.
-  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `spring`, `damper`, `minDistance`, `maxDistance`, and `tolerance`.
+  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `spring`, `damper`, `minDistance`, `maxDistance`, and `tolerance`.
 - `fixedJoint.getSettings` / `fixedJoint.setSettings`
   - Typed convenience wrappers for `FixedJoint`.
-  - `setSettings` currently supports the shared `Joint` field subset plus `connectedBodyInstanceId`.
+  - `setSettings` supports the shared `Joint` field subset plus `connectedBodyInstanceId` and `connectedAnchorMode`.
+- `characterJoint.getSettings` / `characterJoint.setSettings`
+  - Typed convenience wrappers for `CharacterJoint`.
+  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `swingAxis`, `enableProjection`, `enablePreprocessing`, twist-limit springs, swing-limit springs, and twist/swing limits.
 - `configurableJoint.getSettings` / `configurableJoint.setSettings`
-  - Typed convenience wrappers for a safe `ConfigurableJoint` MVP subset.
-  - `setSettings` supports shared `Joint` fields plus `secondaryAxis`, `configuredInWorldSpace`, `swapBodies`, and linear/angular motion modes.
+  - Typed convenience wrappers for a practical `ConfigurableJoint` editing subset.
+  - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, `secondaryAxis`, `configuredInWorldSpace`, `swapBodies`, linear/angular motion modes, linear/angular limits, target position/velocities, `rotationDriveMode`, x/y/z/angular/slerp drives, and projection settings.
+- For anchored `Joint2D` setters and supported 3D joint setters:
+  - `connectedBodyInstanceId` accepts a matching rigidbody component id, a `GameObject` with exactly one matching rigidbody, or `null` to clear `connectedBody`.
+  - `connectedAnchorMode` accepts `preserve`, `auto`, `zero`, or `matchAnchor`.
+  - Setter responses include connection-helper readback in `applied`:
+    - `connectedBodyInstanceId`
+    - `connectedAnchor`
+    - `connectedAnchorMode`
+    - `autoConfigureConnectedAnchor`
 - `scene.getComponents`
   - Returns component metadata for a target `GameObject` (or a `Component` target's owner `GameObject`).
   - Params:
@@ -1274,22 +1285,63 @@ Request:
 }
 ```
 
+## `characterJoint.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "characterJoint.setSettings",
+  "params": {
+    "instanceId": 73004,
+    "connectedBodyInstanceId": 73010,
+    "connectedAnchorMode": "matchAnchor",
+    "enableProjection": true,
+    "twistLimitSpring": {
+      "spring": 12.0,
+      "damper": 1.5
+    },
+    "lowTwistLimit": {
+      "limit": -25.0,
+      "contactDistance": 0.05
+    },
+    "swing1Limit": {
+      "limit": 35.0
+    }
+  }
+}
+```
+
 ## `configurableJoint.setSettings` Example
 Request:
 ```json
 {
   "jsonrpc": "2.0",
-  "id": 20,
+  "id": 22,
   "method": "configurableJoint.setSettings",
   "params": {
-    "instanceId": 73004,
+    "instanceId": 73005,
     "configuredInWorldSpace": true,
     "xMotion": "Locked",
     "yMotion": "Limited",
     "zMotion": "Free",
     "angularXMotion": "Limited",
     "angularYMotion": "Locked",
-    "angularZMotion": "Locked"
+    "angularZMotion": "Locked",
+    "linearLimit": {
+      "limit": 0.5,
+      "contactDistance": 0.02
+    },
+    "targetPosition": [0.0, 0.5, 0.0],
+    "rotationDriveMode": "Slerp",
+    "slerpDrive": {
+      "positionSpring": 50.0,
+      "positionDamper": 4.0,
+      "maximumForce": 200.0
+    },
+    "projectionMode": "PositionAndRotation",
+    "projectionDistance": 0.1,
+    "projectionAngle": 10.0
   }
 }
 ```

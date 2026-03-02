@@ -632,7 +632,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("HingeJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["useConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
                         ["useMotor"] = new JsonObject { ["type"] = "boolean" },
                         ["motorSpeed"] = new JsonObject { ["type"] = "number" },
@@ -664,7 +665,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("SpringJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["autoConfigureDistance"] = new JsonObject { ["type"] = "boolean" },
                         ["distance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["dampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
@@ -693,7 +695,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("DistanceJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["autoConfigureDistance"] = new JsonObject { ["type"] = "boolean" },
                         ["distance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["maxDistanceOnly"] = new JsonObject { ["type"] = "boolean" }
@@ -721,7 +724,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("FixedJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["dampingRatio"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
                         ["frequency"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
                     }
@@ -748,7 +752,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("SliderJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["autoConfigureAngle"] = new JsonObject { ["type"] = "boolean" },
                         ["angle"] = new JsonObject { ["type"] = "number" },
                         ["useMotor"] = new JsonObject { ["type"] = "boolean" },
@@ -781,7 +786,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("WheelJoint2D connected Rigidbody2D instance id, GameObject with one Rigidbody2D, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["useMotor"] = new JsonObject { ["type"] = "boolean" },
                         ["motorSpeed"] = new JsonObject { ["type"] = "number" },
                         ["maxMotorTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
@@ -838,7 +844,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("HingeJoint connected Rigidbody instance id, GameObject with one Rigidbody, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["useSpring"] = new JsonObject { ["type"] = "boolean" },
                         ["spring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["damper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
@@ -874,7 +881,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("SpringJoint connected Rigidbody instance id, GameObject with one Rigidbody, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["spring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["damper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["minDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
@@ -904,16 +912,52 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" }
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("FixedJoint connected Rigidbody instance id, GameObject with one Rigidbody, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema()
+                    }
+                }),
+            new McpToolDefinition(
+                "characterJoint.getSettings",
+                "Returns CharacterJoint settings for a CharacterJoint target (or a GameObject with a single CharacterJoint).",
+                InstanceIdOnlySchema("Unity instance id of a CharacterJoint component or a GameObject with a single CharacterJoint.")),
+            new McpToolDefinition(
+                "characterJoint.setSettings",
+                "Mutates CharacterJoint settings using direct Unity CharacterJoint APIs.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["autoConfigureConnectedAnchor"] = new JsonObject { ["type"] = "boolean" },
+                        ["anchor"] = Vector3Schema("CharacterJoint anchor [x,y,z]."),
+                        ["connectedAnchor"] = Vector3Schema("CharacterJoint connected anchor [x,y,z]."),
+                        ["axis"] = Vector3Schema("CharacterJoint axis [x,y,z]."),
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("CharacterJoint connected Rigidbody instance id, GameObject with one Rigidbody, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
+                        ["swingAxis"] = Vector3Schema("CharacterJoint swing axis [x,y,z]."),
+                        ["enableProjection"] = new JsonObject { ["type"] = "boolean" },
+                        ["enablePreprocessing"] = new JsonObject { ["type"] = "boolean" },
+                        ["twistLimitSpring"] = SoftJointLimitSpringSchema("CharacterJoint twist limit spring."),
+                        ["swingLimitSpring"] = SoftJointLimitSpringSchema("CharacterJoint swing limit spring."),
+                        ["lowTwistLimit"] = SoftJointLimitSchema("CharacterJoint low twist limit."),
+                        ["highTwistLimit"] = SoftJointLimitSchema("CharacterJoint high twist limit."),
+                        ["swing1Limit"] = SoftJointLimitSchema("CharacterJoint swing1 limit."),
+                        ["swing2Limit"] = SoftJointLimitSchema("CharacterJoint swing2 limit.")
                     }
                 }),
             new McpToolDefinition(
                 "configurableJoint.getSettings",
-                "Returns a safe ConfigurableJoint settings subset for a ConfigurableJoint target (or a GameObject with a single ConfigurableJoint).",
+                "Returns ConfigurableJoint settings for a ConfigurableJoint target (or a GameObject with a single ConfigurableJoint).",
                 InstanceIdOnlySchema("Unity instance id of a ConfigurableJoint component or a GameObject with a single ConfigurableJoint.")),
             new McpToolDefinition(
                 "configurableJoint.setSettings",
-                "Mutates a safe ConfigurableJoint settings subset using direct Unity ConfigurableJoint APIs.",
+                "Mutates a practical ConfigurableJoint settings subset using direct Unity ConfigurableJoint APIs.",
                 new JsonObject
                 {
                     ["type"] = "object",
@@ -930,7 +974,8 @@ public sealed class McpToolCatalog
                         ["enableCollision"] = new JsonObject { ["type"] = "boolean" },
                         ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
-                        ["connectedBodyInstanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["connectedBodyInstanceId"] = NullableIntegerSchema("ConfigurableJoint connected Rigidbody instance id, GameObject with one Rigidbody, or null to clear."),
+                        ["connectedAnchorMode"] = ConnectedAnchorModeSchema(),
                         ["configuredInWorldSpace"] = new JsonObject { ["type"] = "boolean" },
                         ["swapBodies"] = new JsonObject { ["type"] = "boolean" },
                         ["xMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
@@ -938,7 +983,25 @@ public sealed class McpToolCatalog
                         ["zMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
                         ["angularXMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
                         ["angularYMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
-                        ["angularZMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value.")
+                        ["angularZMotion"] = EnumLikeSchema("ConfigurableJointMotion enum name or integer value."),
+                        ["linearLimit"] = SoftJointLimitSchema("ConfigurableJoint linear limit."),
+                        ["lowAngularXLimit"] = SoftJointLimitSchema("ConfigurableJoint low angular X limit."),
+                        ["highAngularXLimit"] = SoftJointLimitSchema("ConfigurableJoint high angular X limit."),
+                        ["angularYLimit"] = SoftJointLimitSchema("ConfigurableJoint angular Y limit."),
+                        ["angularZLimit"] = SoftJointLimitSchema("ConfigurableJoint angular Z limit."),
+                        ["targetPosition"] = Vector3Schema("ConfigurableJoint target position [x,y,z]."),
+                        ["targetVelocity"] = Vector3Schema("ConfigurableJoint target velocity [x,y,z]."),
+                        ["targetAngularVelocity"] = Vector3Schema("ConfigurableJoint target angular velocity [x,y,z]."),
+                        ["rotationDriveMode"] = EnumLikeSchema("RotationDriveMode enum name or integer value."),
+                        ["xDrive"] = JointDriveSchema("ConfigurableJoint X drive."),
+                        ["yDrive"] = JointDriveSchema("ConfigurableJoint Y drive."),
+                        ["zDrive"] = JointDriveSchema("ConfigurableJoint Z drive."),
+                        ["angularXDrive"] = JointDriveSchema("ConfigurableJoint angular X drive."),
+                        ["angularYZDrive"] = JointDriveSchema("ConfigurableJoint angular YZ drive."),
+                        ["slerpDrive"] = JointDriveSchema("ConfigurableJoint slerp drive."),
+                        ["projectionMode"] = EnumLikeSchema("JointProjectionMode enum name or integer value."),
+                        ["projectionDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["projectionAngle"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
                     }
                 }),
             new McpToolDefinition(
@@ -1373,6 +1436,72 @@ public sealed class McpToolCatalog
                 {
                     ["type"] = "integer"
                 }
+            }
+        };
+    }
+
+    private static JsonObject NullableIntegerSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["description"] = description,
+            ["type"] = new JsonArray("integer", "null")
+        };
+    }
+
+    private static JsonObject ConnectedAnchorModeSchema()
+    {
+        return new JsonObject
+        {
+            ["type"] = "string",
+            ["description"] = "Connection helper mode: preserve, auto, zero, or matchAnchor.",
+            ["enum"] = new JsonArray("preserve", "auto", "zero", "matchAnchor")
+        };
+    }
+
+    private static JsonObject SoftJointLimitSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["description"] = description,
+            ["additionalProperties"] = false,
+            ["properties"] = new JsonObject
+            {
+                ["limit"] = new JsonObject { ["type"] = "number" },
+                ["bounciness"] = new JsonObject { ["type"] = "number" },
+                ["contactDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+            }
+        };
+    }
+
+    private static JsonObject SoftJointLimitSpringSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["description"] = description,
+            ["additionalProperties"] = false,
+            ["properties"] = new JsonObject
+            {
+                ["spring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                ["damper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+            }
+        };
+    }
+
+    private static JsonObject JointDriveSchema(string description)
+    {
+        return new JsonObject
+        {
+            ["type"] = "object",
+            ["description"] = description,
+            ["additionalProperties"] = false,
+            ["properties"] = new JsonObject
+            {
+                ["positionSpring"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                ["positionDamper"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                ["maximumForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
             }
         };
     }

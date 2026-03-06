@@ -6320,7 +6320,9 @@ internal sealed class UnityMcpClient : IDisposable
 
     private static string BuildNavMeshBakeResponse(JToken idToken)
     {
+#pragma warning disable CS0618 // UnityEditor.AI.NavMeshBuilder deprecated; replacement not available in Editor context
         UnityEditor.AI.NavMeshBuilder.BuildNavMesh();
+#pragma warning restore CS0618
         return UnityMcpProtocol.CreateResult(idToken, new { baked = true });
     }
 

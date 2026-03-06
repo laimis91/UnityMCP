@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.SceneManagement;
@@ -590,6 +591,25 @@ internal sealed class UnityMcpClient : IDisposable
                 "skinnedMeshRenderer.setSettings" => BuildSetSkinnedMeshRendererSettingsResponse(idToken, root),
                 // ScriptableObject
                 "assets.createScriptableObject" => BuildCreateScriptableObjectResponse(idToken, root),
+                // Batch 3: NavMesh
+                "navMesh.bake" => BuildNavMeshBakeResponse(idToken),
+                // Batch 3: Terrain
+                "terrain.getSettings" => BuildGetTerrainSettingsResponse(idToken, root),
+                "terrain.setSettings" => BuildSetTerrainSettingsResponse(idToken, root),
+                // Batch 3: Build Pipeline
+                "build.getSettings" => BuildGetBuildSettingsResponse(idToken),
+                "build.setSettings" => BuildSetBuildSettingsResponse(idToken, root),
+                "build.build" => BuildBuildResponse(idToken, root),
+                // Batch 3: Tags & Layers Management
+                "editor.addTag" => BuildAddTagResponse(idToken, root),
+                "editor.removeTag" => BuildRemoveTagResponse(idToken, root),
+                "editor.addLayer" => BuildAddLayerResponse(idToken, root),
+                "editor.removeLayer" => BuildRemoveLayerResponse(idToken, root),
+                // Batch 3: Selection Utilities
+                "scene.getSelectionDetails" => BuildGetSelectionDetailsResponse(idToken),
+                "scene.selectByName" => BuildSelectByNameResponse(idToken, root),
+                // Batch 3: Undo History
+                "editor.getUndoHistory" => BuildGetUndoHistoryResponse(idToken),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -6274,6 +6294,363 @@ internal sealed class UnityMcpClient : IDisposable
             typeName = soType.FullName,
             guid,
             created = true
+        });
+    }
+
+    // ── Batch 3: NavMesh ────────────────────────────────────────────────
+
+    private static string BuildNavMeshBakeResponse(JToken idToken)
+    {
+        UnityEditor.AI.NavMeshBuilder.BuildNavMesh();
+        return UnityMcpProtocol.CreateResult(idToken, new { baked = true });
+    }
+
+    // ── Batch 3: Terrain ────────────────────────────────────────────────
+
+    private static string BuildGetTerrainSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "terrain.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (terrain, _) = ResolveComponentFromInstanceId<Terrain>(instanceId, "terrain.getSettings");
+        var td = terrain.terrainData;
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(terrain),
+            heightmapResolution = td != null ? td.heightmapResolution : 0,
+            size = td != null ? CreateVector3Array(td.size) : null,
+            basemapDistance = terrain.basemapDistance,
+            drawHeightmap = terrain.drawHeightmap,
+            drawInstanced = terrain.drawInstanced,
+            detailObjectDistance = terrain.detailObjectDistance,
+            treeBillboardDistance = terrain.treeBillboardDistance,
+            shadowCastingMode = terrain.shadowCastingMode.ToString()
+        });
+    }
+
+    private static string BuildSetTerrainSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "terrain.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (terrain, ownerGo) = ResolveComponentFromInstanceId<Terrain>(instanceId, "terrain.setSettings");
+        var td = terrain.terrainData;
+
+        Undo.RecordObject(terrain, "Set Terrain Settings");
+        if (td != null)
+            Undo.RecordObject(td, "Set Terrain Settings");
+
+        if (td != null && paramsObject.TryGetValue("heightmapResolution", out var hmrToken) && hmrToken.Type == JTokenType.Integer)
+            td.heightmapResolution = hmrToken.Value<int>();
+
+        if (td != null && paramsObject.TryGetValue("size", out var sizeToken) && sizeToken is JArray sizeArr && sizeArr.Count == 3)
+            td.size = new Vector3(sizeArr[0].Value<float>(), sizeArr[1].Value<float>(), sizeArr[2].Value<float>());
+
+        if (TryGetFloat(paramsObject, "basemapDistance", out var basemap))
+            terrain.basemapDistance = basemap;
+
+        if (paramsObject.TryGetValue("drawHeightmap", out var dhToken) && dhToken.Type == JTokenType.Boolean)
+            terrain.drawHeightmap = dhToken.Value<bool>();
+
+        if (paramsObject.TryGetValue("drawInstanced", out var diToken) && diToken.Type == JTokenType.Boolean)
+            terrain.drawInstanced = diToken.Value<bool>();
+
+        if (TryGetFloat(paramsObject, "detailObjectDistance", out var detailDist))
+            terrain.detailObjectDistance = detailDist;
+
+        if (TryGetFloat(paramsObject, "treeBillboardDistance", out var treeDist))
+            terrain.treeBillboardDistance = treeDist;
+
+        if (paramsObject.TryGetValue("shadowCastingMode", out var scmToken))
+        {
+            terrain.shadowCastingMode = ParseEnumToken<UnityEngine.Rendering.ShadowCastingMode>(scmToken, "shadowCastingMode");
+        }
+
+        EditorUtility.SetDirty(terrain);
+        if (td != null)
+            EditorUtility.SetDirty(td);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(terrain),
+            applied = true
+        });
+    }
+
+    // ── Batch 3: Build Pipeline ─────────────────────────────────────────
+
+    private static string BuildGetBuildSettingsResponse(JToken idToken)
+    {
+        var scenes = EditorBuildSettings.scenes;
+        var sceneList = new List<object>(scenes.Length);
+        foreach (var scene in scenes)
+        {
+            sceneList.Add(new
+            {
+                path = scene.path,
+                enabled = scene.enabled,
+                guid = scene.guid.ToString()
+            });
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            scenes = sceneList,
+            activeBuildTarget = EditorUserBuildSettings.activeBuildTarget.ToString(),
+            developmentBuild = EditorUserBuildSettings.development,
+            buildOutputPath = EditorUserBuildSettings.GetBuildLocation(EditorUserBuildSettings.activeBuildTarget)
+        });
+    }
+
+    private static string BuildSetBuildSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "build.setSettings");
+
+        if (paramsObject.TryGetValue("developmentBuild", out var devToken) && devToken.Type == JTokenType.Boolean)
+            EditorUserBuildSettings.development = devToken.Value<bool>();
+
+        if (paramsObject.TryGetValue("outputPath", out var opToken) && opToken.Type == JTokenType.String)
+            EditorUserBuildSettings.SetBuildLocation(EditorUserBuildSettings.activeBuildTarget, opToken.Value<string>()!);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            developmentBuild = EditorUserBuildSettings.development,
+            buildOutputPath = EditorUserBuildSettings.GetBuildLocation(EditorUserBuildSettings.activeBuildTarget),
+            applied = true
+        });
+    }
+
+    private static string BuildBuildResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "build.build");
+        var outputPath = ParseRequiredStringParameter(paramsObject, "outputPath");
+
+        var scenes = EditorBuildSettings.scenes;
+        var enabledScenes = new List<string>();
+        foreach (var scene in scenes)
+        {
+            if (scene.enabled)
+                enabledScenes.Add(scene.path);
+        }
+
+        if (enabledScenes.Count == 0)
+            throw new ArgumentException("No enabled scenes in build settings.");
+
+        var options = EditorUserBuildSettings.development
+            ? BuildOptions.Development
+            : BuildOptions.None;
+
+        var report = BuildPipeline.BuildPlayer(
+            enabledScenes.ToArray(),
+            outputPath,
+            EditorUserBuildSettings.activeBuildTarget,
+            options);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            summary = report.summary.result.ToString(),
+            totalErrors = report.summary.totalErrors,
+            totalWarnings = report.summary.totalWarnings,
+            totalTime = report.summary.totalTime.TotalSeconds,
+            outputPath = report.summary.outputPath
+        });
+    }
+
+    // ── Batch 3: Tags & Layers Management ───────────────────────────────
+
+    private static string BuildAddTagResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "editor.addTag");
+        var tag = ParseRequiredStringParameter(paramsObject, "tag");
+
+        // Check if tag already exists
+        foreach (var existing in UnityEditorInternal.InternalEditorUtility.tags)
+        {
+            if (existing == tag)
+                return UnityMcpProtocol.CreateResult(idToken, new { added = false, reason = "Tag already exists.", tag });
+        }
+
+        var tagManager = new SerializedObject(AssetDatabase.LoadMainAssetAtPath("ProjectSettings/TagManager.asset"));
+        var tagsProp = tagManager.FindProperty("tags");
+
+        tagsProp.InsertArrayElementAtIndex(tagsProp.arraySize);
+        var newTag = tagsProp.GetArrayElementAtIndex(tagsProp.arraySize - 1);
+        newTag.stringValue = tag;
+        tagManager.ApplyModifiedProperties();
+
+        return UnityMcpProtocol.CreateResult(idToken, new { added = true, tag });
+    }
+
+    private static string BuildRemoveTagResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "editor.removeTag");
+        var tag = ParseRequiredStringParameter(paramsObject, "tag");
+
+        var tagManager = new SerializedObject(AssetDatabase.LoadMainAssetAtPath("ProjectSettings/TagManager.asset"));
+        var tagsProp = tagManager.FindProperty("tags");
+
+        for (int i = 0; i < tagsProp.arraySize; i++)
+        {
+            if (tagsProp.GetArrayElementAtIndex(i).stringValue == tag)
+            {
+                tagsProp.DeleteArrayElementAtIndex(i);
+                tagManager.ApplyModifiedProperties();
+                return UnityMcpProtocol.CreateResult(idToken, new { removed = true, tag });
+            }
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new { removed = false, reason = "Tag not found.", tag });
+    }
+
+    private static string BuildAddLayerResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "editor.addLayer");
+        var layer = ParseRequiredStringParameter(paramsObject, "layer");
+
+        // Check if layer already exists
+        for (int i = 0; i < 32; i++)
+        {
+            if (LayerMask.LayerToName(i) == layer)
+                return UnityMcpProtocol.CreateResult(idToken, new { added = false, reason = "Layer already exists.", layer, slot = i });
+        }
+
+        var tagManager = new SerializedObject(AssetDatabase.LoadMainAssetAtPath("ProjectSettings/TagManager.asset"));
+        var layersProp = tagManager.FindProperty("layers");
+
+        // Find first empty slot in user layers (8-31)
+        for (int i = 8; i < 32; i++)
+        {
+            var element = layersProp.GetArrayElementAtIndex(i);
+            if (string.IsNullOrEmpty(element.stringValue))
+            {
+                element.stringValue = layer;
+                tagManager.ApplyModifiedProperties();
+                return UnityMcpProtocol.CreateResult(idToken, new { added = true, layer, slot = i });
+            }
+        }
+
+        throw new ArgumentException("No empty layer slots available (layers 8-31 are all used).");
+    }
+
+    private static string BuildRemoveLayerResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "editor.removeLayer");
+        var layer = ParseRequiredStringParameter(paramsObject, "layer");
+
+        var tagManager = new SerializedObject(AssetDatabase.LoadMainAssetAtPath("ProjectSettings/TagManager.asset"));
+        var layersProp = tagManager.FindProperty("layers");
+
+        for (int i = 8; i < 32; i++)
+        {
+            var element = layersProp.GetArrayElementAtIndex(i);
+            if (element.stringValue == layer)
+            {
+                element.stringValue = "";
+                tagManager.ApplyModifiedProperties();
+                return UnityMcpProtocol.CreateResult(idToken, new { removed = true, layer, slot = i });
+            }
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new { removed = false, reason = "Layer not found.", layer });
+    }
+
+    // ── Batch 3: Selection Utilities ────────────────────────────────────
+
+    private static string BuildGetSelectionDetailsResponse(JToken idToken)
+    {
+        var selectedObjects = Selection.gameObjects;
+        var details = new List<object>(selectedObjects.Length);
+
+        foreach (var go in selectedObjects)
+        {
+            if (go == null) continue;
+
+            var components = go.GetComponents<Component>();
+            var componentList = new List<object>(components.Length);
+            foreach (var comp in components)
+            {
+                if (comp == null) continue;
+                componentList.Add(new
+                {
+                    type = comp.GetType().FullName,
+                    instanceId = comp.GetInstanceID()
+                });
+            }
+
+            var t = go.transform;
+            details.Add(new
+            {
+                instanceId = go.GetInstanceID(),
+                name = go.name,
+                hierarchyPath = GetHierarchyPath(t),
+                activeSelf = go.activeSelf,
+                activeInHierarchy = go.activeInHierarchy,
+                tag = go.tag,
+                layer = go.layer,
+                layerName = LayerMask.LayerToName(go.layer),
+                transform = new
+                {
+                    localPosition = CreateVector3Array(t.localPosition),
+                    localRotation = CreateVector3Array(t.localEulerAngles),
+                    localScale = CreateVector3Array(t.localScale),
+                    worldPosition = CreateVector3Array(t.position),
+                    worldRotation = CreateVector3Array(t.eulerAngles)
+                },
+                components = componentList
+            });
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new { count = details.Count, objects = details });
+    }
+
+    private static string BuildSelectByNameResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.selectByName");
+        var name = ParseRequiredStringParameter(paramsObject, "name");
+        var exactMatch = ParseOptionalBooleanParameter(paramsObject, "exactMatch", true);
+
+        var matches = new List<GameObject>();
+
+        if (exactMatch)
+        {
+            // Use FindObjectsByType for all matches
+            var allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj.name == name)
+                    matches.Add(obj);
+            }
+        }
+        else
+        {
+            var allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            foreach (var obj in allObjects)
+            {
+                if (obj.name.Contains(name, System.StringComparison.OrdinalIgnoreCase))
+                    matches.Add(obj);
+            }
+        }
+
+        if (matches.Count == 0)
+            throw new ArgumentException($"No GameObject found with name '{name}'.");
+
+        Selection.objects = matches.ToArray();
+        Selection.activeGameObject = matches[0];
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            count = matches.Count,
+            selection = BuildSelectionSummaryResult()
+        });
+    }
+
+    // ── Batch 3: Undo History ───────────────────────────────────────────
+
+    private static string BuildGetUndoHistoryResponse(JToken idToken)
+    {
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            currentGroupName = Undo.GetCurrentGroupName(),
+            currentGroup = Undo.GetCurrentGroup()
         });
     }
 

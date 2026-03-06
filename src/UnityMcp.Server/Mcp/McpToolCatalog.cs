@@ -2098,7 +2098,152 @@ public sealed class McpToolCatalog
                         ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative asset path (must start with Assets/ and end with .asset)." },
                         ["typeName"] = new JsonObject { ["type"] = "string", ["description"] = "Fully qualified or short name of a ScriptableObject subclass." }
                     }
-                })
+                }),
+
+            // ── Batch 3: NavMesh ──────────────────────────────────────────────
+            new McpToolDefinition(
+                "navMesh.bake",
+                "Bakes the NavMesh for the active scene using NavMeshBuilder.BuildNavMesh().",
+                EmptyObjectSchema()),
+
+            // ── Batch 3: Terrain ──────────────────────────────────────────────
+            new McpToolDefinition(
+                "terrain.getSettings",
+                "Returns terrain settings for the Terrain component identified by instanceId.",
+                InstanceIdOnlySchema("Instance ID of a GameObject with a Terrain component.")),
+            new McpToolDefinition(
+                "terrain.setSettings",
+                "Sets terrain settings for the Terrain component identified by instanceId.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a GameObject with a Terrain component." },
+                        ["heightmapResolution"] = new JsonObject { ["type"] = "integer", ["description"] = "Heightmap resolution (power of two + 1)." },
+                        ["size"] = Vector3Schema("Terrain size as [x, y, z]."),
+                        ["basemapDistance"] = new JsonObject { ["type"] = "number", ["description"] = "Distance at which terrain textures switch to basemap." },
+                        ["drawHeightmap"] = new JsonObject { ["type"] = "boolean" },
+                        ["drawInstanced"] = new JsonObject { ["type"] = "boolean" },
+                        ["detailObjectDistance"] = new JsonObject { ["type"] = "number" },
+                        ["treeBillboardDistance"] = new JsonObject { ["type"] = "number" },
+                        ["shadowCastingMode"] = EnumLikeSchema("ShadowCastingMode enum name or integer value.")
+                    }
+                }),
+
+            // ── Batch 3: Build Pipeline ───────────────────────────────────────
+            new McpToolDefinition(
+                "build.getSettings",
+                "Returns current build settings: scenes in build, active build target, development build flag.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "build.setSettings",
+                "Sets build pipeline settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["developmentBuild"] = new JsonObject { ["type"] = "boolean", ["description"] = "Enable or disable development build." },
+                        ["outputPath"] = new JsonObject { ["type"] = "string", ["description"] = "Build output path." }
+                    }
+                }),
+            new McpToolDefinition(
+                "build.build",
+                "Triggers BuildPipeline.BuildPlayer with current settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("outputPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["outputPath"] = new JsonObject { ["type"] = "string", ["description"] = "Output path for the build." }
+                    }
+                }),
+
+            // ── Batch 3: Tags & Layers Management ────────────────────────────
+            new McpToolDefinition(
+                "editor.addTag",
+                "Adds a new tag to the project via the TagManager.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("tag"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["tag"] = new JsonObject { ["type"] = "string", ["description"] = "Tag name to add." }
+                    }
+                }),
+            new McpToolDefinition(
+                "editor.removeTag",
+                "Removes a tag from the project by name.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("tag"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["tag"] = new JsonObject { ["type"] = "string", ["description"] = "Tag name to remove." }
+                    }
+                }),
+            new McpToolDefinition(
+                "editor.addLayer",
+                "Adds a new layer to the project (finds first empty slot in layers 8-31).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("layer"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["layer"] = new JsonObject { ["type"] = "string", ["description"] = "Layer name to add." }
+                    }
+                }),
+            new McpToolDefinition(
+                "editor.removeLayer",
+                "Removes a layer from the project by name (clears the slot).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("layer"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["layer"] = new JsonObject { ["type"] = "string", ["description"] = "Layer name to remove." }
+                    }
+                }),
+
+            // ── Batch 3: Selection Utilities ──────────────────────────────────
+            new McpToolDefinition(
+                "scene.getSelectionDetails",
+                "Returns full component list and transform details for all currently selected objects.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "scene.selectByName",
+                "Finds and selects GameObject(s) by name.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("name"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["name"] = new JsonObject { ["type"] = "string", ["description"] = "Name of the GameObject(s) to find and select." },
+                        ["exactMatch"] = new JsonObject { ["type"] = "boolean", ["description"] = "If true (default), match name exactly; if false, match as substring." }
+                    }
+                }),
+
+            // ── Batch 3: Undo History ─────────────────────────────────────────
+            new McpToolDefinition(
+                "editor.getUndoHistory",
+                "Returns the current undo group name and group index.",
+                EmptyObjectSchema())
         };
 
         Tools = tools;

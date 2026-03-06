@@ -6362,7 +6362,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (paramsObject.TryGetValue("shadowCastingMode", out var scmToken))
         {
-            terrain.shadowCastingMode = ParseEnum<UnityEngine.Rendering.ShadowCastingMode>(scmToken, "shadowCastingMode");
+            terrain.shadowCastingMode = ParseEnumToken<UnityEngine.Rendering.ShadowCastingMode>(scmToken, "shadowCastingMode");
         }
 
         EditorUtility.SetDirty(terrain);
@@ -6613,7 +6613,7 @@ internal sealed class UnityMcpClient : IDisposable
         if (exactMatch)
         {
             // Use FindObjectsByType for all matches
-            var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            var allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             foreach (var obj in allObjects)
             {
                 if (obj.name == name)
@@ -6622,7 +6622,7 @@ internal sealed class UnityMcpClient : IDisposable
         }
         else
         {
-            var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            var allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             foreach (var obj in allObjects)
             {
                 if (obj.name.Contains(name, System.StringComparison.OrdinalIgnoreCase))

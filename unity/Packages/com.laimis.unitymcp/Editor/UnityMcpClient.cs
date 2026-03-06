@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 namespace UnityMcp.Editor
@@ -530,6 +531,65 @@ internal sealed class UnityMcpClient : IDisposable
                 "assets.import" => BuildImportAssetResponse(idToken, root),
                 "assets.ping" => BuildPingAssetResponse(idToken, root),
                 "assets.reveal" => BuildRevealAssetResponse(idToken, root),
+                // Editor utility
+                "editor.clearConsole" => BuildClearConsoleResponse(idToken),
+                "editor.pausePlayMode" => BuildPausePlayModeResponse(idToken, root),
+                "editor.undo" => BuildUndoResponse(idToken),
+                "editor.redo" => BuildRedoResponse(idToken),
+                "editor.getTags" => BuildGetTagsResponse(idToken),
+                "editor.getLayers" => BuildGetLayersResponse(idToken),
+                // Scene tag / layer
+                "scene.setTag" => BuildSetTagResponse(idToken, root),
+                "scene.setLayer" => BuildSetLayerResponse(idToken, root),
+                // Scene management
+                "scene.save" => BuildSaveSceneResponse(idToken, root),
+                "scene.openScene" => BuildOpenSceneResponse(idToken, root),
+                "scene.newScene" => BuildNewSceneResponse(idToken, root),
+                "scene.closeScene" => BuildCloseSceneResponse(idToken, root),
+                "scene.setActiveScene" => BuildSetActiveSceneResponse(idToken, root),
+                // Asset creation / management
+                "assets.createFolder" => BuildCreateFolderResponse(idToken, root),
+                "assets.createScript" => BuildCreateScriptResponse(idToken, root),
+                "assets.createMaterial" => BuildCreateMaterialResponse(idToken, root),
+                "assets.createPrefab" => BuildCreatePrefabResponse(idToken, root),
+                "assets.delete" => BuildDeleteAssetResponse(idToken, root),
+                "assets.move" => BuildMoveAssetResponse(idToken, root),
+                // Animator
+                "animator.getSettings" => BuildGetAnimatorSettingsResponse(idToken, root),
+                "animator.setSettings" => BuildSetAnimatorSettingsResponse(idToken, root),
+                "animator.getParameters" => BuildGetAnimatorParametersResponse(idToken, root),
+                "animator.setParameter" => BuildSetAnimatorParameterResponse(idToken, root),
+                // MeshRenderer
+                "meshRenderer.getSettings" => BuildGetMeshRendererSettingsResponse(idToken, root),
+                "meshRenderer.setSettings" => BuildSetMeshRendererSettingsResponse(idToken, root),
+                // AudioSource
+                "audioSource.getSettings" => BuildGetAudioSourceSettingsResponse(idToken, root),
+                "audioSource.setSettings" => BuildSetAudioSourceSettingsResponse(idToken, root),
+                // CharacterController
+                "characterController.getSettings" => BuildGetCharacterControllerSettingsResponse(idToken, root),
+                "characterController.setSettings" => BuildSetCharacterControllerSettingsResponse(idToken, root),
+                // ParticleSystem
+                "particleSystem.getSettings" => BuildGetParticleSystemSettingsResponse(idToken, root),
+                "particleSystem.setSettings" => BuildSetParticleSystemSettingsResponse(idToken, root),
+                "particleSystem.play" => BuildParticleSystemPlayResponse(idToken, root),
+                "particleSystem.stop" => BuildParticleSystemStopResponse(idToken, root),
+                // NavMeshAgent
+                "navMeshAgent.getSettings" => BuildGetNavMeshAgentSettingsResponse(idToken, root),
+                "navMeshAgent.setSettings" => BuildSetNavMeshAgentSettingsResponse(idToken, root),
+                // NavMeshObstacle
+                "navMeshObstacle.getSettings" => BuildGetNavMeshObstacleSettingsResponse(idToken, root),
+                "navMeshObstacle.setSettings" => BuildSetNavMeshObstacleSettingsResponse(idToken, root),
+                // RectTransform
+                "rectTransform.getSettings" => BuildGetRectTransformSettingsResponse(idToken, root),
+                "rectTransform.setSettings" => BuildSetRectTransformSettingsResponse(idToken, root),
+                // Canvas
+                "canvas.getSettings" => BuildGetCanvasSettingsResponse(idToken, root),
+                "canvas.setSettings" => BuildSetCanvasSettingsResponse(idToken, root),
+                // SkinnedMeshRenderer
+                "skinnedMeshRenderer.getSettings" => BuildGetSkinnedMeshRendererSettingsResponse(idToken, root),
+                "skinnedMeshRenderer.setSettings" => BuildSetSkinnedMeshRendererSettingsResponse(idToken, root),
+                // ScriptableObject
+                "assets.createScriptableObject" => BuildCreateScriptableObjectResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -4899,6 +4959,1350 @@ internal sealed class UnityMcpClient : IDisposable
         };
 
         return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Editor utility ────────────────────────────────────────────────────
+
+    private static string BuildClearConsoleResponse(JToken idToken)
+    {
+        var logEntries = System.Type.GetType("UnityEditor.LogEntries, UnityEditor");
+        logEntries?.GetMethod("Clear")?.Invoke(null, null);
+        return UnityMcpProtocol.CreateResult(idToken, new { cleared = true });
+    }
+
+    private static string BuildPausePlayModeResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "editor.pausePlayMode");
+        if (!paramsObject.TryGetValue("paused", out var pausedToken) || pausedToken.Type != JTokenType.Boolean)
+            throw new ArgumentException("Parameter 'paused' is required and must be a boolean.");
+        EditorApplication.isPaused = pausedToken.Value<bool>();
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            paused = EditorApplication.isPaused,
+            editorState = BuildEditorStateResult()
+        });
+    }
+
+    private static string BuildUndoResponse(JToken idToken)
+    {
+        Undo.PerformUndo();
+        return UnityMcpProtocol.CreateResult(idToken, new { applied = true });
+    }
+
+    private static string BuildRedoResponse(JToken idToken)
+    {
+        Undo.PerformRedo();
+        return UnityMcpProtocol.CreateResult(idToken, new { applied = true });
+    }
+
+    private static string BuildGetTagsResponse(JToken idToken)
+    {
+        var tags = UnityEditorInternal.InternalEditorUtility.tags;
+        return UnityMcpProtocol.CreateResult(idToken, new { count = tags.Length, tags });
+    }
+
+    private static string BuildGetLayersResponse(JToken idToken)
+    {
+        var layers = UnityEditorInternal.InternalEditorUtility.layers;
+        return UnityMcpProtocol.CreateResult(idToken, new { count = layers.Length, layers });
+    }
+
+    // ── Scene tag / layer ────────────────────────────────────────────────
+
+    private static string BuildSetTagResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.setTag");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        if (!paramsObject.TryGetValue("tag", out var tagToken) || tagToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'tag' is required and must be a string.");
+        var tag = tagToken.Value<string>()!;
+
+        var gameObject = ResolveGameObjectFromInstanceId(instanceId, "scene.setTag");
+        Undo.RecordObject(gameObject, "Set Tag");
+        var previousTag = gameObject.tag;
+        gameObject.tag = tag;
+        EditorUtility.SetDirty(gameObject);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(gameObject),
+            previousTag,
+            currentTag = gameObject.tag,
+            applied = true
+        });
+    }
+
+    private static string BuildSetLayerResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.setLayer");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+
+        if (!paramsObject.TryGetValue("layer", out var layerToken))
+            throw new ArgumentException("Parameter 'layer' is required.");
+
+        int layerIndex;
+        if (layerToken.Type == JTokenType.Integer)
+        {
+            layerIndex = layerToken.Value<int>();
+            if (layerIndex < 0 || layerIndex > 31)
+                throw new ArgumentException("Parameter 'layer' integer must be between 0 and 31.");
+        }
+        else if (layerToken.Type == JTokenType.String)
+        {
+            layerIndex = LayerMask.NameToLayer(layerToken.Value<string>()!);
+            if (layerIndex < 0)
+                throw new ArgumentException($"Layer name '{layerToken.Value<string>()}' not found.");
+        }
+        else
+        {
+            throw new ArgumentException("Parameter 'layer' must be an integer index or layer name string.");
+        }
+
+        var includeChildren = false;
+        if (paramsObject.TryGetValue("includeChildren", out var inclToken) && inclToken.Type == JTokenType.Boolean)
+            includeChildren = inclToken.Value<bool>();
+
+        var gameObject = ResolveGameObjectFromInstanceId(instanceId, "scene.setLayer");
+        var previousLayer = gameObject.layer;
+        SetLayerRecursive(gameObject, layerIndex, includeChildren);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(gameObject),
+            previousLayer,
+            currentLayer = gameObject.layer,
+            layerName = LayerMask.LayerToName(layerIndex),
+            includeChildren,
+            applied = true
+        });
+    }
+
+    private static void SetLayerRecursive(GameObject go, int layer, bool includeChildren)
+    {
+        Undo.RecordObject(go, "Set Layer");
+        go.layer = layer;
+        EditorUtility.SetDirty(go);
+        if (!includeChildren) return;
+        foreach (Transform child in go.transform)
+            SetLayerRecursive(child.gameObject, layer, true);
+    }
+
+    // ── Scene management ─────────────────────────────────────────────────
+
+    private static string BuildSaveSceneResponse(JToken idToken, JObject root)
+    {
+        UnityEngine.SceneManagement.Scene targetScene;
+        string? scenePath = null;
+
+        if (root.TryGetValue("params", out var paramsToken) && paramsToken is JObject p &&
+            p.TryGetValue("scenePath", out var spToken) && spToken.Type == JTokenType.String)
+        {
+            scenePath = spToken.Value<string>();
+            targetScene = FindOpenSceneByPathOrName(scenePath!, "scene.save");
+        }
+        else
+        {
+            targetScene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+        }
+
+        var saved = UnityEditor.SceneManagement.EditorSceneManager.SaveScene(targetScene);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            saved,
+            sceneName = targetScene.name,
+            scenePath = targetScene.path
+        });
+    }
+
+    private static string BuildOpenSceneResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.openScene");
+        if (!paramsObject.TryGetValue("scenePath", out var spToken) || spToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'scenePath' is required and must be a string.");
+        var scenePath = spToken.Value<string>()!;
+
+        var mode = UnityEditor.SceneManagement.OpenSceneMode.Single;
+        if (paramsObject.TryGetValue("mode", out var modeToken) && modeToken.Type == JTokenType.String)
+        {
+            mode = modeToken.Value<string>() switch
+            {
+                "Additive" => UnityEditor.SceneManagement.OpenSceneMode.Additive,
+                "Single" => UnityEditor.SceneManagement.OpenSceneMode.Single,
+                var m => throw new ArgumentException($"Invalid mode '{m}'. Use 'Single' or 'Additive'.")
+            };
+        }
+
+        var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(scenePath, mode);
+        if (!scene.IsValid())
+            throw new ArgumentException($"Failed to open scene at '{scenePath}'.");
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            sceneName = scene.name,
+            scenePath = scene.path,
+            isActive = scene == UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene(),
+            mode = mode.ToString(),
+            opened = true
+        });
+    }
+
+    private static string BuildNewSceneResponse(JToken idToken, JObject root)
+    {
+        var setup = UnityEditor.SceneManagement.NewSceneSetup.DefaultGameObjects;
+        var mode = UnityEditor.SceneManagement.NewSceneMode.Single;
+
+        if (root.TryGetValue("params", out var paramsToken) && paramsToken is JObject p)
+        {
+            if (p.TryGetValue("setup", out var setupToken) && setupToken.Type == JTokenType.String)
+            {
+                setup = setupToken.Value<string>() switch
+                {
+                    "EmptyScene" => UnityEditor.SceneManagement.NewSceneSetup.EmptyScene,
+                    "DefaultGameObjects" => UnityEditor.SceneManagement.NewSceneSetup.DefaultGameObjects,
+                    var s => throw new ArgumentException($"Invalid setup '{s}'. Use 'EmptyScene' or 'DefaultGameObjects'.")
+                };
+            }
+
+            if (p.TryGetValue("mode", out var modeToken) && modeToken.Type == JTokenType.String)
+            {
+                mode = modeToken.Value<string>() switch
+                {
+                    "Single" => UnityEditor.SceneManagement.NewSceneMode.Single,
+                    "Additive" => UnityEditor.SceneManagement.NewSceneMode.Additive,
+                    var m => throw new ArgumentException($"Invalid mode '{m}'. Use 'Single' or 'Additive'.")
+                };
+            }
+        }
+
+        var scene = UnityEditor.SceneManagement.EditorSceneManager.NewScene(setup, mode);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            sceneName = scene.name,
+            scenePath = scene.path,
+            setup = setup.ToString(),
+            mode = mode.ToString(),
+            created = true
+        });
+    }
+
+    private static string BuildCloseSceneResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.closeScene");
+        if (!paramsObject.TryGetValue("scenePath", out var spToken) || spToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'scenePath' is required and must be a string.");
+
+        var removeScene = true;
+        if (paramsObject.TryGetValue("removeScene", out var rmToken) && rmToken.Type == JTokenType.Boolean)
+            removeScene = rmToken.Value<bool>();
+
+        var scene = FindOpenSceneByPathOrName(spToken.Value<string>()!, "scene.closeScene");
+        var sceneName = scene.name;
+        var scenePath = scene.path;
+
+        var closed = UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, removeScene);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            closed,
+            sceneName,
+            scenePath,
+            removeScene
+        });
+    }
+
+    private static string BuildSetActiveSceneResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.setActiveScene");
+        if (!paramsObject.TryGetValue("scenePath", out var spToken) || spToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'scenePath' is required and must be a string.");
+
+        var scene = FindOpenSceneByPathOrName(spToken.Value<string>()!, "scene.setActiveScene");
+        var set = UnityEditor.SceneManagement.EditorSceneManager.SetActiveScene(scene);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            set,
+            sceneName = scene.name,
+            scenePath = scene.path
+        });
+    }
+
+    private static UnityEngine.SceneManagement.Scene FindOpenSceneByPathOrName(string pathOrName, string methodName)
+    {
+        var sceneCount = UnityEditor.SceneManagement.EditorSceneManager.sceneCount;
+        for (var i = 0; i < sceneCount; i++)
+        {
+            var s = UnityEditor.SceneManagement.EditorSceneManager.GetSceneAt(i);
+            if (s.path == pathOrName || s.name == pathOrName)
+                return s;
+        }
+        throw new ArgumentException($"[{methodName}] No open scene matches '{pathOrName}'.");
+    }
+
+    // ── Asset creation / management ──────────────────────────────────────
+
+    private static string BuildCreateFolderResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.createFolder");
+        if (!paramsObject.TryGetValue("parentFolder", out var parentToken) || parentToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'parentFolder' is required and must be a string.");
+        if (!paramsObject.TryGetValue("folderName", out var nameToken) || nameToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'folderName' is required and must be a string.");
+
+        var parentFolder = parentToken.Value<string>()!;
+        var folderName = nameToken.Value<string>()!;
+
+        if (!AssetDatabase.IsValidFolder(parentFolder))
+            throw new ArgumentException($"Parent folder '{parentFolder}' does not exist.");
+
+        var guid = AssetDatabase.CreateFolder(parentFolder, folderName);
+        var createdPath = AssetDatabase.GUIDToAssetPath(guid);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            created = true,
+            assetPath = createdPath,
+            guid
+        });
+    }
+
+    private static string BuildCreateScriptResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.createScript");
+        if (!paramsObject.TryGetValue("assetPath", out var pathToken) || pathToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'assetPath' is required and must be a string.");
+
+        var assetPath = pathToken.Value<string>()!;
+        if (!assetPath.EndsWith(".cs", System.StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Parameter 'assetPath' must end with '.cs'.");
+
+        string content;
+        if (paramsObject.TryGetValue("content", out var contentToken) && contentToken.Type == JTokenType.String)
+        {
+            content = contentToken.Value<string>()!;
+        }
+        else
+        {
+            var className = System.IO.Path.GetFileNameWithoutExtension(assetPath);
+            content = $"using UnityEngine;\n\npublic class {className} : MonoBehaviour\n{{\n    void Start()\n    {{\n    }}\n\n    void Update()\n    {{\n    }}\n}}\n";
+        }
+
+        var fullPath = System.IO.Path.Combine(Application.dataPath, "..", assetPath);
+        fullPath = System.IO.Path.GetFullPath(fullPath);
+        var dir = System.IO.Path.GetDirectoryName(fullPath)!;
+        if (!System.IO.Directory.Exists(dir))
+            System.IO.Directory.CreateDirectory(dir);
+
+        System.IO.File.WriteAllText(fullPath, content);
+        AssetDatabase.Refresh();
+
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            created = true,
+            assetPath,
+            guid
+        });
+    }
+
+    private static string BuildCreateMaterialResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.createMaterial");
+        if (!paramsObject.TryGetValue("assetPath", out var pathToken) || pathToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'assetPath' is required and must be a string.");
+
+        var assetPath = pathToken.Value<string>()!;
+        var shaderName = "Standard";
+        if (paramsObject.TryGetValue("shaderName", out var shaderToken) && shaderToken.Type == JTokenType.String)
+            shaderName = shaderToken.Value<string>()!;
+
+        var shader = Shader.Find(shaderName);
+        if (shader == null)
+            throw new ArgumentException($"Shader '{shaderName}' not found.");
+
+        var material = new Material(shader);
+        AssetDatabase.CreateAsset(material, assetPath);
+        AssetDatabase.SaveAssets();
+
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            created = true,
+            assetPath,
+            guid,
+            shaderName
+        });
+    }
+
+    private static string BuildCreatePrefabResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.createPrefab");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        if (!paramsObject.TryGetValue("assetPath", out var pathToken) || pathToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'assetPath' is required and must be a string.");
+
+        var assetPath = pathToken.Value<string>()!;
+        var gameObject = ResolveGameObjectFromInstanceId(instanceId, "assets.createPrefab");
+        var prefab = PrefabUtility.SaveAsPrefabAsset(gameObject, assetPath);
+        if (prefab == null)
+            throw new System.Exception($"Failed to save prefab at '{assetPath}'.");
+
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            created = true,
+            assetPath,
+            guid,
+            source = CreateObjectSummary(gameObject)
+        });
+    }
+
+    private static string BuildDeleteAssetResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.delete");
+        if (!paramsObject.TryGetValue("assetPath", out var pathToken) || pathToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'assetPath' is required and must be a string.");
+
+        var assetPath = pathToken.Value<string>()!;
+        var deleted = AssetDatabase.DeleteAsset(assetPath);
+        if (!deleted)
+            throw new ArgumentException($"Failed to delete asset at '{assetPath}'. Check the path exists.");
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            deleted = true,
+            assetPath
+        });
+    }
+
+    private static string BuildMoveAssetResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.move");
+        if (!paramsObject.TryGetValue("sourcePath", out var srcToken) || srcToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'sourcePath' is required and must be a string.");
+        if (!paramsObject.TryGetValue("destinationPath", out var dstToken) || dstToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'destinationPath' is required and must be a string.");
+
+        var sourcePath = srcToken.Value<string>()!;
+        var destinationPath = dstToken.Value<string>()!;
+
+        var error = AssetDatabase.MoveAsset(sourcePath, destinationPath);
+        if (!string.IsNullOrEmpty(error))
+            throw new ArgumentException($"Move failed: {error}");
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            moved = true,
+            sourcePath,
+            destinationPath,
+            guid = AssetDatabase.AssetPathToGUID(destinationPath)
+        });
+    }
+
+    // ── Animator ─────────────────────────────────────────────────────────
+
+    private static string BuildGetAnimatorSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "animator.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (animator, ownerGo) = ResolveComponentFromInstanceId<Animator>(instanceId, "animator.getSettings");
+
+        var settings = new
+        {
+            enabled = animator.enabled,
+            speed = animator.speed,
+            applyRootMotion = animator.applyRootMotion,
+            updateMode = animator.updateMode.ToString(),
+            cullingMode = animator.cullingMode.ToString(),
+            hasController = animator.runtimeAnimatorController != null,
+            controllerName = animator.runtimeAnimatorController?.name,
+            hasAvatar = animator.avatar != null,
+            avatarName = animator.avatar?.name,
+            layerCount = animator.layerCount,
+            parameterCount = animator.parameterCount,
+            isHuman = animator.isHuman,
+            isInitialized = animator.isInitialized
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(animator),
+            settings
+        });
+    }
+
+    private static string BuildSetAnimatorSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "animator.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (animator, ownerGo) = ResolveComponentFromInstanceId<Animator>(instanceId, "animator.setSettings");
+
+        Undo.RecordObject(animator, "Set Animator Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { animator.enabled = en.Value<bool>(); applied.Add("enabled"); }
+        if (TryGetFloat(paramsObject, "speed", out var animSpeed))
+        { animator.speed = animSpeed; applied.Add("speed"); }
+        if (paramsObject.TryGetValue("applyRootMotion", out var rm) && rm.Type == JTokenType.Boolean)
+        { animator.applyRootMotion = rm.Value<bool>(); applied.Add("applyRootMotion"); }
+        if (paramsObject.TryGetValue("updateMode", out var um))
+        { animator.updateMode = ParseEnumToken<AnimatorUpdateMode>(um, "updateMode"); applied.Add("updateMode"); }
+        if (paramsObject.TryGetValue("cullingMode", out var cm))
+        { animator.cullingMode = ParseEnumToken<AnimatorCullingMode>(cm, "cullingMode"); applied.Add("cullingMode"); }
+
+        EditorUtility.SetDirty(animator);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(animator),
+            applied
+        });
+    }
+
+    private static string BuildGetAnimatorParametersResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "animator.getParameters");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (animator, ownerGo) = ResolveComponentFromInstanceId<Animator>(instanceId, "animator.getParameters");
+
+        if (animator.runtimeAnimatorController == null)
+            throw new ArgumentException("Animator has no controller assigned.");
+
+        var parameters = new System.Collections.Generic.List<object>();
+        for (var i = 0; i < animator.parameterCount; i++)
+        {
+            var p = animator.GetParameter(i);
+            object defaultValue = p.type switch
+            {
+                AnimatorControllerParameterType.Bool => p.defaultBool,
+                AnimatorControllerParameterType.Int => p.defaultInt,
+                AnimatorControllerParameterType.Float => p.defaultFloat,
+                _ => (object)"trigger"
+            };
+            parameters.Add(new { name = p.name, type = p.type.ToString(), defaultValue });
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            parameterCount = parameters.Count,
+            parameters
+        });
+    }
+
+    private static string BuildSetAnimatorParameterResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "animator.setParameter");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        if (!paramsObject.TryGetValue("parameterName", out var nameToken) || nameToken.Type != JTokenType.String)
+            throw new ArgumentException("Parameter 'parameterName' is required and must be a string.");
+
+        var (animator, ownerGo) = ResolveComponentFromInstanceId<Animator>(instanceId, "animator.setParameter");
+        var paramName = nameToken.Value<string>()!;
+
+        // Find parameter type
+        AnimatorControllerParameterType? paramType = null;
+        for (var i = 0; i < animator.parameterCount; i++)
+        {
+            var p = animator.GetParameter(i);
+            if (p.name == paramName) { paramType = p.type; break; }
+        }
+        if (paramType == null)
+            throw new ArgumentException($"Parameter '{paramName}' not found in Animator.");
+
+        paramsObject.TryGetValue("value", out var valueToken);
+
+        switch (paramType)
+        {
+            case AnimatorControllerParameterType.Bool:
+                if (valueToken == null || valueToken.Type != JTokenType.Boolean)
+                    throw new ArgumentException($"Parameter '{paramName}' is Bool; 'value' must be boolean.");
+                animator.SetBool(paramName, valueToken.Value<bool>());
+                break;
+            case AnimatorControllerParameterType.Int:
+                if (valueToken == null || valueToken.Type != JTokenType.Integer)
+                    throw new ArgumentException($"Parameter '{paramName}' is Int; 'value' must be integer.");
+                animator.SetInteger(paramName, valueToken.Value<int>());
+                break;
+            case AnimatorControllerParameterType.Float:
+                if (valueToken == null || (valueToken.Type != JTokenType.Float && valueToken.Type != JTokenType.Integer))
+                    throw new ArgumentException($"Parameter '{paramName}' is Float; 'value' must be a number.");
+                animator.SetFloat(paramName, valueToken.Value<float>());
+                break;
+            case AnimatorControllerParameterType.Trigger:
+                animator.SetTrigger(paramName);
+                break;
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            parameterName = paramName,
+            parameterType = paramType.ToString(),
+            applied = true
+        });
+    }
+
+    // ── MeshRenderer ─────────────────────────────────────────────────────
+
+    private static string BuildGetMeshRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "meshRenderer.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (mr, ownerGo) = ResolveComponentFromInstanceId<MeshRenderer>(instanceId, "meshRenderer.getSettings");
+
+        var materials = new System.Collections.Generic.List<object>();
+        foreach (var mat in mr.sharedMaterials)
+            materials.Add(new { name = mat != null ? mat.name : null, shader = mat != null ? mat.shader?.name : null });
+
+        var settings = new
+        {
+            enabled = mr.enabled,
+            shadowCastingMode = mr.shadowCastingMode.ToString(),
+            receiveShadows = mr.receiveShadows,
+            lightProbeUsage = mr.lightProbeUsage.ToString(),
+            reflectionProbeUsage = mr.reflectionProbeUsage.ToString(),
+            motionVectorGenerationMode = mr.motionVectorGenerationMode.ToString(),
+            staticShadowCaster = mr.staticShadowCaster,
+            allowOcclusionWhenDynamic = mr.allowOcclusionWhenDynamic,
+            materialCount = mr.sharedMaterials.Length,
+            materials
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(mr),
+            settings
+        });
+    }
+
+    private static string BuildSetMeshRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "meshRenderer.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (mr, ownerGo) = ResolveComponentFromInstanceId<MeshRenderer>(instanceId, "meshRenderer.setSettings");
+
+        Undo.RecordObject(mr, "Set MeshRenderer Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { mr.enabled = en.Value<bool>(); applied.Add("enabled"); }
+        if (paramsObject.TryGetValue("shadowCastingMode", out var scm))
+        { mr.shadowCastingMode = ParseEnumToken<UnityEngine.Rendering.ShadowCastingMode>(scm, "shadowCastingMode"); applied.Add("shadowCastingMode"); }
+        if (paramsObject.TryGetValue("receiveShadows", out var rs) && rs.Type == JTokenType.Boolean)
+        { mr.receiveShadows = rs.Value<bool>(); applied.Add("receiveShadows"); }
+        if (paramsObject.TryGetValue("lightProbeUsage", out var lpu))
+        { mr.lightProbeUsage = ParseEnumToken<UnityEngine.Rendering.LightProbeUsage>(lpu, "lightProbeUsage"); applied.Add("lightProbeUsage"); }
+        if (paramsObject.TryGetValue("reflectionProbeUsage", out var rpu))
+        { mr.reflectionProbeUsage = ParseEnumToken<UnityEngine.Rendering.ReflectionProbeUsage>(rpu, "reflectionProbeUsage"); applied.Add("reflectionProbeUsage"); }
+        if (paramsObject.TryGetValue("motionVectorGenerationMode", out var mvm))
+        { mr.motionVectorGenerationMode = ParseEnumToken<MotionVectorGenerationMode>(mvm, "motionVectorGenerationMode"); applied.Add("motionVectorGenerationMode"); }
+        if (paramsObject.TryGetValue("staticShadowCaster", out var ssc) && ssc.Type == JTokenType.Boolean)
+        { mr.staticShadowCaster = ssc.Value<bool>(); applied.Add("staticShadowCaster"); }
+        if (paramsObject.TryGetValue("allowOcclusionWhenDynamic", out var aod) && aod.Type == JTokenType.Boolean)
+        { mr.allowOcclusionWhenDynamic = aod.Value<bool>(); applied.Add("allowOcclusionWhenDynamic"); }
+
+        EditorUtility.SetDirty(mr);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(mr),
+            applied
+        });
+    }
+
+    // ── AudioSource ───────────────────────────────────────────────────────
+
+    private static string BuildGetAudioSourceSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "audioSource.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (audio, ownerGo) = ResolveComponentFromInstanceId<AudioSource>(instanceId, "audioSource.getSettings");
+
+        var settings = new
+        {
+            enabled = audio.enabled,
+            clipName = audio.clip != null ? audio.clip.name : null,
+            volume = audio.volume,
+            pitch = audio.pitch,
+            loop = audio.loop,
+            playOnAwake = audio.playOnAwake,
+            mute = audio.mute,
+            spatialBlend = audio.spatialBlend,
+            spatialize = audio.spatialize,
+            priority = audio.priority,
+            dopplerLevel = audio.dopplerLevel,
+            minDistance = audio.minDistance,
+            maxDistance = audio.maxDistance,
+            rolloffMode = audio.rolloffMode.ToString(),
+            isPlaying = audio.isPlaying
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(audio),
+            settings
+        });
+    }
+
+    private static string BuildSetAudioSourceSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "audioSource.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (audio, ownerGo) = ResolveComponentFromInstanceId<AudioSource>(instanceId, "audioSource.setSettings");
+
+        Undo.RecordObject(audio, "Set AudioSource Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { audio.enabled = en.Value<bool>(); applied.Add("enabled"); }
+        if (TryGetFloat(paramsObject, "volume", out var vol))
+        { audio.volume = vol; applied.Add("volume"); }
+        if (TryGetFloat(paramsObject, "pitch", out var pitch))
+        { audio.pitch = pitch; applied.Add("pitch"); }
+        if (paramsObject.TryGetValue("loop", out var loop) && loop.Type == JTokenType.Boolean)
+        { audio.loop = loop.Value<bool>(); applied.Add("loop"); }
+        if (paramsObject.TryGetValue("playOnAwake", out var poa) && poa.Type == JTokenType.Boolean)
+        { audio.playOnAwake = poa.Value<bool>(); applied.Add("playOnAwake"); }
+        if (paramsObject.TryGetValue("mute", out var mute) && mute.Type == JTokenType.Boolean)
+        { audio.mute = mute.Value<bool>(); applied.Add("mute"); }
+        if (TryGetFloat(paramsObject, "spatialBlend", out var sb))
+        { audio.spatialBlend = sb; applied.Add("spatialBlend"); }
+        if (paramsObject.TryGetValue("spatialize", out var spat) && spat.Type == JTokenType.Boolean)
+        { audio.spatialize = spat.Value<bool>(); applied.Add("spatialize"); }
+        if (paramsObject.TryGetValue("priority", out var pri) && pri.Type == JTokenType.Integer)
+        { audio.priority = pri.Value<int>(); applied.Add("priority"); }
+        if (TryGetFloat(paramsObject, "dopplerLevel", out var dl))
+        { audio.dopplerLevel = dl; applied.Add("dopplerLevel"); }
+        if (TryGetFloat(paramsObject, "minDistance", out var minD))
+        { audio.minDistance = minD; applied.Add("minDistance"); }
+        if (TryGetFloat(paramsObject, "maxDistance", out var maxD))
+        { audio.maxDistance = maxD; applied.Add("maxDistance"); }
+        if (paramsObject.TryGetValue("rolloffMode", out var rom))
+        { audio.rolloffMode = ParseEnumToken<AudioRolloffMode>(rom, "rolloffMode"); applied.Add("rolloffMode"); }
+
+        EditorUtility.SetDirty(audio);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(audio),
+            applied
+        });
+    }
+
+    // ── CharacterController ───────────────────────────────────────────────
+
+    private static string BuildGetCharacterControllerSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "characterController.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (cc, ownerGo) = ResolveComponentFromInstanceId<CharacterController>(instanceId, "characterController.getSettings");
+
+        var settings = new
+        {
+            height = cc.height,
+            radius = cc.radius,
+            center = CreateVector3Array(cc.center),
+            slopeLimit = cc.slopeLimit,
+            stepOffset = cc.stepOffset,
+            skinWidth = cc.skinWidth,
+            minMoveDistance = cc.minMoveDistance,
+            enableOverlapRecovery = cc.enableOverlapRecovery,
+            isGrounded = cc.isGrounded
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(cc),
+            settings
+        });
+    }
+
+    private static string BuildSetCharacterControllerSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "characterController.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (cc, ownerGo) = ResolveComponentFromInstanceId<CharacterController>(instanceId, "characterController.setSettings");
+
+        Undo.RecordObject(cc, "Set CharacterController Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (TryGetFloat(paramsObject, "height", out var h))
+        { cc.height = h; applied.Add("height"); }
+        if (TryGetFloat(paramsObject, "radius", out var r))
+        { cc.radius = r; applied.Add("radius"); }
+        if (paramsObject.TryGetValue("center", out var ctr) && ctr is JArray ctrArr && ctrArr.Count == 3)
+        { cc.center = new Vector3(ctrArr[0].Value<float>(), ctrArr[1].Value<float>(), ctrArr[2].Value<float>()); applied.Add("center"); }
+        if (TryGetFloat(paramsObject, "slopeLimit", out var sl))
+        { cc.slopeLimit = sl; applied.Add("slopeLimit"); }
+        if (TryGetFloat(paramsObject, "stepOffset", out var so))
+        { cc.stepOffset = so; applied.Add("stepOffset"); }
+        if (TryGetFloat(paramsObject, "skinWidth", out var sw))
+        { cc.skinWidth = sw; applied.Add("skinWidth"); }
+        if (TryGetFloat(paramsObject, "minMoveDistance", out var mmd))
+        { cc.minMoveDistance = mmd; applied.Add("minMoveDistance"); }
+        if (paramsObject.TryGetValue("enableOverlapRecovery", out var eor) && eor.Type == JTokenType.Boolean)
+        { cc.enableOverlapRecovery = eor.Value<bool>(); applied.Add("enableOverlapRecovery"); }
+
+        EditorUtility.SetDirty(cc);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(cc),
+            applied
+        });
+    }
+
+    // ── ParticleSystem ──────────────────────────────────────────────────
+
+    private static string BuildGetParticleSystemSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "particleSystem.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.getSettings");
+
+        var main = ps.main;
+        var emission = ps.emission;
+        var settings = new
+        {
+            duration = main.duration,
+            loop = main.loop,
+            prewarm = main.prewarm,
+            startDelay = main.startDelay.constant,
+            startLifetime = main.startLifetime.constant,
+            startSpeed = main.startSpeed.constant,
+            startSize = main.startSize.constant,
+            maxParticles = main.maxParticles,
+            playOnAwake = main.playOnAwake,
+            emissionRate = emission.rateOverTime.constant,
+            isPlaying = ps.isPlaying,
+            isPaused = ps.isPaused,
+            isStopped = ps.isStopped,
+            particleCount = ps.particleCount
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(ps),
+            settings
+        });
+    }
+
+    private static string BuildSetParticleSystemSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "particleSystem.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.setSettings");
+
+        Undo.RecordObject(ps, "Set ParticleSystem Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        var main = ps.main;
+        var emission = ps.emission;
+
+        if (TryGetFloat(paramsObject, "duration", out var duration))
+        { main.duration = duration; applied.Add("duration"); }
+        if (paramsObject.TryGetValue("loop", out var loopToken) && loopToken.Type == JTokenType.Boolean)
+        { main.loop = loopToken.Value<bool>(); applied.Add("loop"); }
+        if (paramsObject.TryGetValue("prewarm", out var prewarmToken) && prewarmToken.Type == JTokenType.Boolean)
+        { main.prewarm = prewarmToken.Value<bool>(); applied.Add("prewarm"); }
+        if (TryGetFloat(paramsObject, "startDelay", out var startDelay))
+        { main.startDelay = startDelay; applied.Add("startDelay"); }
+        if (TryGetFloat(paramsObject, "startLifetime", out var startLifetime))
+        { main.startLifetime = startLifetime; applied.Add("startLifetime"); }
+        if (TryGetFloat(paramsObject, "startSpeed", out var startSpeed))
+        { main.startSpeed = startSpeed; applied.Add("startSpeed"); }
+        if (TryGetFloat(paramsObject, "startSize", out var startSize))
+        { main.startSize = startSize; applied.Add("startSize"); }
+        if (paramsObject.TryGetValue("maxParticles", out var maxP) && maxP.Type == JTokenType.Integer)
+        { main.maxParticles = maxP.Value<int>(); applied.Add("maxParticles"); }
+        if (paramsObject.TryGetValue("playOnAwake", out var poa) && poa.Type == JTokenType.Boolean)
+        { main.playOnAwake = poa.Value<bool>(); applied.Add("playOnAwake"); }
+        if (TryGetFloat(paramsObject, "emissionRate", out var emRate))
+        { emission.rateOverTime = emRate; applied.Add("emissionRate"); }
+
+        EditorUtility.SetDirty(ps);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(ps),
+            applied
+        });
+    }
+
+    private static string BuildParticleSystemPlayResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "particleSystem.play");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.play");
+
+        ps.Play();
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(ps),
+            isPlaying = ps.isPlaying,
+            particleCount = ps.particleCount
+        });
+    }
+
+    private static string BuildParticleSystemStopResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "particleSystem.stop");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.stop");
+
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(ps),
+            isPlaying = ps.isPlaying,
+            isStopped = ps.isStopped,
+            particleCount = ps.particleCount
+        });
+    }
+
+    // ── NavMeshAgent ────────────────────────────────────────────────────
+
+    private static string BuildGetNavMeshAgentSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "navMeshAgent.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (agent, ownerGo) = ResolveComponentFromInstanceId<UnityEngine.AI.NavMeshAgent>(instanceId, "navMeshAgent.getSettings");
+
+        var settings = new
+        {
+            speed = agent.speed,
+            angularSpeed = agent.angularSpeed,
+            acceleration = agent.acceleration,
+            stoppingDistance = agent.stoppingDistance,
+            radius = agent.radius,
+            height = agent.height,
+            areaMask = agent.areaMask,
+            autoBraking = agent.autoBraking,
+            obstacleAvoidanceType = agent.obstacleAvoidanceType.ToString(),
+            avoidancePriority = agent.avoidancePriority,
+            enabled = agent.enabled
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(agent),
+            settings
+        });
+    }
+
+    private static string BuildSetNavMeshAgentSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "navMeshAgent.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (agent, ownerGo) = ResolveComponentFromInstanceId<UnityEngine.AI.NavMeshAgent>(instanceId, "navMeshAgent.setSettings");
+
+        Undo.RecordObject(agent, "Set NavMeshAgent Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (TryGetFloat(paramsObject, "speed", out var speed))
+        { agent.speed = speed; applied.Add("speed"); }
+        if (TryGetFloat(paramsObject, "angularSpeed", out var angSpeed))
+        { agent.angularSpeed = angSpeed; applied.Add("angularSpeed"); }
+        if (TryGetFloat(paramsObject, "acceleration", out var accel))
+        { agent.acceleration = accel; applied.Add("acceleration"); }
+        if (TryGetFloat(paramsObject, "stoppingDistance", out var stopDist))
+        { agent.stoppingDistance = stopDist; applied.Add("stoppingDistance"); }
+        if (TryGetFloat(paramsObject, "radius", out var radius))
+        { agent.radius = radius; applied.Add("radius"); }
+        if (TryGetFloat(paramsObject, "height", out var height))
+        { agent.height = height; applied.Add("height"); }
+        if (paramsObject.TryGetValue("areaMask", out var am) && am.Type == JTokenType.Integer)
+        { agent.areaMask = am.Value<int>(); applied.Add("areaMask"); }
+        if (paramsObject.TryGetValue("autoBraking", out var ab) && ab.Type == JTokenType.Boolean)
+        { agent.autoBraking = ab.Value<bool>(); applied.Add("autoBraking"); }
+        if (paramsObject.TryGetValue("obstacleAvoidanceType", out var oat))
+        { agent.obstacleAvoidanceType = ParseEnumToken<UnityEngine.AI.ObstacleAvoidanceType>(oat, "obstacleAvoidanceType"); applied.Add("obstacleAvoidanceType"); }
+        if (paramsObject.TryGetValue("avoidancePriority", out var ap) && ap.Type == JTokenType.Integer)
+        { agent.avoidancePriority = ap.Value<int>(); applied.Add("avoidancePriority"); }
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { agent.enabled = en.Value<bool>(); applied.Add("enabled"); }
+
+        EditorUtility.SetDirty(agent);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(agent),
+            applied
+        });
+    }
+
+    // ── NavMeshObstacle ─────────────────────────────────────────────────
+
+    private static string BuildGetNavMeshObstacleSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "navMeshObstacle.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (obstacle, ownerGo) = ResolveComponentFromInstanceId<UnityEngine.AI.NavMeshObstacle>(instanceId, "navMeshObstacle.getSettings");
+
+        var settings = new
+        {
+            carving = obstacle.carving,
+            carvingMoveThreshold = obstacle.carvingMoveThreshold,
+            carvingTimeToStationary = obstacle.carvingTimeToStationary,
+            shape = obstacle.shape.ToString(),
+            center = CreateVector3Array(obstacle.center),
+            size = CreateVector3Array(obstacle.size),
+            radius = obstacle.radius,
+            height = obstacle.height,
+            enabled = obstacle.enabled
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(obstacle),
+            settings
+        });
+    }
+
+    private static string BuildSetNavMeshObstacleSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "navMeshObstacle.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (obstacle, ownerGo) = ResolveComponentFromInstanceId<UnityEngine.AI.NavMeshObstacle>(instanceId, "navMeshObstacle.setSettings");
+
+        Undo.RecordObject(obstacle, "Set NavMeshObstacle Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("carving", out var carv) && carv.Type == JTokenType.Boolean)
+        { obstacle.carving = carv.Value<bool>(); applied.Add("carving"); }
+        if (TryGetFloat(paramsObject, "carvingMoveThreshold", out var cmt))
+        { obstacle.carvingMoveThreshold = cmt; applied.Add("carvingMoveThreshold"); }
+        if (TryGetFloat(paramsObject, "carvingTimeToStationary", out var tts))
+        { obstacle.carvingTimeToStationary = tts; applied.Add("carvingTimeToStationary"); }
+        if (paramsObject.TryGetValue("shape", out var shapeToken))
+        { obstacle.shape = ParseEnumToken<UnityEngine.AI.NavMeshObstacleShape>(shapeToken, "shape"); applied.Add("shape"); }
+        if (paramsObject.TryGetValue("center", out var ctr) && ctr is JArray ctrArr && ctrArr.Count == 3)
+        { obstacle.center = new Vector3(ctrArr[0].Value<float>(), ctrArr[1].Value<float>(), ctrArr[2].Value<float>()); applied.Add("center"); }
+        if (paramsObject.TryGetValue("size", out var sz) && sz is JArray szArr && szArr.Count == 3)
+        { obstacle.size = new Vector3(szArr[0].Value<float>(), szArr[1].Value<float>(), szArr[2].Value<float>()); applied.Add("size"); }
+        if (TryGetFloat(paramsObject, "radius", out var rad))
+        { obstacle.radius = rad; applied.Add("radius"); }
+        if (TryGetFloat(paramsObject, "height", out var h))
+        { obstacle.height = h; applied.Add("height"); }
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { obstacle.enabled = en.Value<bool>(); applied.Add("enabled"); }
+
+        EditorUtility.SetDirty(obstacle);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(obstacle),
+            applied
+        });
+    }
+
+    // ── RectTransform ───────────────────────────────────────────────────
+
+    private static string BuildGetRectTransformSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rectTransform.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (rt, ownerGo) = ResolveComponentFromInstanceId<RectTransform>(instanceId, "rectTransform.getSettings");
+
+        var settings = new
+        {
+            anchorMin = CreateVector2Array(rt.anchorMin),
+            anchorMax = CreateVector2Array(rt.anchorMax),
+            anchoredPosition = CreateVector2Array(rt.anchoredPosition),
+            sizeDelta = CreateVector2Array(rt.sizeDelta),
+            pivot = CreateVector2Array(rt.pivot),
+            offsetMin = CreateVector2Array(rt.offsetMin),
+            offsetMax = CreateVector2Array(rt.offsetMax),
+            rect = new { x = rt.rect.x, y = rt.rect.y, width = rt.rect.width, height = rt.rect.height }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(rt),
+            settings
+        });
+    }
+
+    private static string BuildSetRectTransformSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "rectTransform.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (rt, ownerGo) = ResolveComponentFromInstanceId<RectTransform>(instanceId, "rectTransform.setSettings");
+
+        Undo.RecordObject(rt, "Set RectTransform Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("anchorMin", out var amin) && amin is JArray aminArr && aminArr.Count == 2)
+        { rt.anchorMin = new Vector2(aminArr[0].Value<float>(), aminArr[1].Value<float>()); applied.Add("anchorMin"); }
+        if (paramsObject.TryGetValue("anchorMax", out var amax) && amax is JArray amaxArr && amaxArr.Count == 2)
+        { rt.anchorMax = new Vector2(amaxArr[0].Value<float>(), amaxArr[1].Value<float>()); applied.Add("anchorMax"); }
+        if (paramsObject.TryGetValue("anchoredPosition", out var ap) && ap is JArray apArr && apArr.Count == 2)
+        { rt.anchoredPosition = new Vector2(apArr[0].Value<float>(), apArr[1].Value<float>()); applied.Add("anchoredPosition"); }
+        if (paramsObject.TryGetValue("sizeDelta", out var sd) && sd is JArray sdArr && sdArr.Count == 2)
+        { rt.sizeDelta = new Vector2(sdArr[0].Value<float>(), sdArr[1].Value<float>()); applied.Add("sizeDelta"); }
+        if (paramsObject.TryGetValue("pivot", out var pv) && pv is JArray pvArr && pvArr.Count == 2)
+        { rt.pivot = new Vector2(pvArr[0].Value<float>(), pvArr[1].Value<float>()); applied.Add("pivot"); }
+        if (paramsObject.TryGetValue("offsetMin", out var omin) && omin is JArray ominArr && ominArr.Count == 2)
+        { rt.offsetMin = new Vector2(ominArr[0].Value<float>(), ominArr[1].Value<float>()); applied.Add("offsetMin"); }
+        if (paramsObject.TryGetValue("offsetMax", out var omax) && omax is JArray omaxArr && omaxArr.Count == 2)
+        { rt.offsetMax = new Vector2(omaxArr[0].Value<float>(), omaxArr[1].Value<float>()); applied.Add("offsetMax"); }
+
+        EditorUtility.SetDirty(rt);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(rt),
+            applied
+        });
+    }
+
+    // ── Canvas ──────────────────────────────────────────────────────────
+
+    private static string BuildGetCanvasSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "canvas.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (canvas, ownerGo) = ResolveComponentFromInstanceId<Canvas>(instanceId, "canvas.getSettings");
+
+        var settings = new
+        {
+            renderMode = canvas.renderMode.ToString(),
+            sortingOrder = canvas.sortingOrder,
+            targetDisplay = canvas.targetDisplay,
+            pixelPerfect = canvas.pixelPerfect,
+            planeDistance = canvas.planeDistance,
+            overrideSorting = canvas.overrideSorting,
+            enabled = canvas.enabled
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(canvas),
+            settings
+        });
+    }
+
+    private static string BuildSetCanvasSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "canvas.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (canvas, ownerGo) = ResolveComponentFromInstanceId<Canvas>(instanceId, "canvas.setSettings");
+
+        Undo.RecordObject(canvas, "Set Canvas Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("renderMode", out var rm))
+        { canvas.renderMode = ParseEnumToken<RenderMode>(rm, "renderMode"); applied.Add("renderMode"); }
+        if (paramsObject.TryGetValue("sortingOrder", out var so) && so.Type == JTokenType.Integer)
+        { canvas.sortingOrder = so.Value<int>(); applied.Add("sortingOrder"); }
+        if (paramsObject.TryGetValue("targetDisplay", out var td) && td.Type == JTokenType.Integer)
+        { canvas.targetDisplay = td.Value<int>(); applied.Add("targetDisplay"); }
+        if (paramsObject.TryGetValue("pixelPerfect", out var pp) && pp.Type == JTokenType.Boolean)
+        { canvas.pixelPerfect = pp.Value<bool>(); applied.Add("pixelPerfect"); }
+        if (TryGetFloat(paramsObject, "planeDistance", out var pd))
+        { canvas.planeDistance = pd; applied.Add("planeDistance"); }
+        if (paramsObject.TryGetValue("overrideSorting", out var os) && os.Type == JTokenType.Boolean)
+        { canvas.overrideSorting = os.Value<bool>(); applied.Add("overrideSorting"); }
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { canvas.enabled = en.Value<bool>(); applied.Add("enabled"); }
+
+        EditorUtility.SetDirty(canvas);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(canvas),
+            applied
+        });
+    }
+
+    // ── SkinnedMeshRenderer ─────────────────────────────────────────────
+
+    private static string BuildGetSkinnedMeshRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "skinnedMeshRenderer.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (smr, ownerGo) = ResolveComponentFromInstanceId<SkinnedMeshRenderer>(instanceId, "skinnedMeshRenderer.getSettings");
+
+        var materials = new System.Collections.Generic.List<object>();
+        foreach (var mat in smr.sharedMaterials)
+            materials.Add(new { name = mat != null ? mat.name : null, shader = mat != null ? mat.shader?.name : null });
+
+        var settings = new
+        {
+            enabled = smr.enabled,
+            shadowCastingMode = smr.shadowCastingMode.ToString(),
+            receiveShadows = smr.receiveShadows,
+            lightProbeUsage = smr.lightProbeUsage.ToString(),
+            reflectionProbeUsage = smr.reflectionProbeUsage.ToString(),
+            motionVectorGenerationMode = smr.motionVectorGenerationMode.ToString(),
+            staticShadowCaster = smr.staticShadowCaster,
+            allowOcclusionWhenDynamic = smr.allowOcclusionWhenDynamic,
+            materialCount = smr.sharedMaterials.Length,
+            materials,
+            rootBone = smr.rootBone != null ? smr.rootBone.name : null,
+            quality = smr.quality.ToString(),
+            updateWhenOffscreen = smr.updateWhenOffscreen,
+            sharedMeshName = smr.sharedMesh != null ? smr.sharedMesh.name : null,
+            blendShapeCount = smr.sharedMesh != null ? smr.sharedMesh.blendShapeCount : 0
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(smr),
+            settings
+        });
+    }
+
+    private static string BuildSetSkinnedMeshRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "skinnedMeshRenderer.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var (smr, ownerGo) = ResolveComponentFromInstanceId<SkinnedMeshRenderer>(instanceId, "skinnedMeshRenderer.setSettings");
+
+        Undo.RecordObject(smr, "Set SkinnedMeshRenderer Settings");
+        var applied = new System.Collections.Generic.List<string>();
+
+        if (paramsObject.TryGetValue("enabled", out var en) && en.Type == JTokenType.Boolean)
+        { smr.enabled = en.Value<bool>(); applied.Add("enabled"); }
+        if (paramsObject.TryGetValue("shadowCastingMode", out var scm))
+        { smr.shadowCastingMode = ParseEnumToken<UnityEngine.Rendering.ShadowCastingMode>(scm, "shadowCastingMode"); applied.Add("shadowCastingMode"); }
+        if (paramsObject.TryGetValue("receiveShadows", out var rs) && rs.Type == JTokenType.Boolean)
+        { smr.receiveShadows = rs.Value<bool>(); applied.Add("receiveShadows"); }
+        if (paramsObject.TryGetValue("lightProbeUsage", out var lpu))
+        { smr.lightProbeUsage = ParseEnumToken<UnityEngine.Rendering.LightProbeUsage>(lpu, "lightProbeUsage"); applied.Add("lightProbeUsage"); }
+        if (paramsObject.TryGetValue("reflectionProbeUsage", out var rpu))
+        { smr.reflectionProbeUsage = ParseEnumToken<UnityEngine.Rendering.ReflectionProbeUsage>(rpu, "reflectionProbeUsage"); applied.Add("reflectionProbeUsage"); }
+        if (paramsObject.TryGetValue("motionVectorGenerationMode", out var mvm))
+        { smr.motionVectorGenerationMode = ParseEnumToken<MotionVectorGenerationMode>(mvm, "motionVectorGenerationMode"); applied.Add("motionVectorGenerationMode"); }
+        if (paramsObject.TryGetValue("staticShadowCaster", out var ssc) && ssc.Type == JTokenType.Boolean)
+        { smr.staticShadowCaster = ssc.Value<bool>(); applied.Add("staticShadowCaster"); }
+        if (paramsObject.TryGetValue("allowOcclusionWhenDynamic", out var aod) && aod.Type == JTokenType.Boolean)
+        { smr.allowOcclusionWhenDynamic = aod.Value<bool>(); applied.Add("allowOcclusionWhenDynamic"); }
+        if (paramsObject.TryGetValue("quality", out var q))
+        { smr.quality = ParseEnumToken<SkinQuality>(q, "quality"); applied.Add("quality"); }
+        if (paramsObject.TryGetValue("updateWhenOffscreen", out var uwo) && uwo.Type == JTokenType.Boolean)
+        { smr.updateWhenOffscreen = uwo.Value<bool>(); applied.Add("updateWhenOffscreen"); }
+
+        EditorUtility.SetDirty(smr);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            target = CreateObjectSummary(ownerGo),
+            component = CreateObjectSummary(smr),
+            applied
+        });
+    }
+
+    // ── ScriptableObject Creation ───────────────────────────────────────
+
+    private static string BuildCreateScriptableObjectResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "assets.createScriptableObject");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var typeName = ParseRequiredStringParameter(paramsObject, "typeName");
+
+        if (string.IsNullOrWhiteSpace(assetPath) || !assetPath.StartsWith("Assets/"))
+            throw new ArgumentException("Parameter 'assetPath' must be a project-relative path starting with 'Assets/'.");
+
+        if (!assetPath.EndsWith(".asset"))
+            assetPath += ".asset";
+
+        // Ensure directory exists
+        var dir = System.IO.Path.GetDirectoryName(assetPath);
+        if (!string.IsNullOrEmpty(dir) && !AssetDatabase.IsValidFolder(dir))
+        {
+            // Create directory hierarchy
+            var parts = dir.Split('/');
+            var current = parts[0];
+            for (var i = 1; i < parts.Length; i++)
+            {
+                var next = current + "/" + parts[i];
+                if (!AssetDatabase.IsValidFolder(next))
+                    AssetDatabase.CreateFolder(current, parts[i]);
+                current = next;
+            }
+        }
+
+        // Find the type by name
+        System.Type? soType = null;
+        foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+        {
+            soType = asm.GetType(typeName);
+            if (soType != null) break;
+        }
+
+        if (soType == null)
+        {
+            // Try short name search
+            foreach (var asm in System.AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach (var t in asm.GetTypes())
+                {
+                    if (t.Name == typeName && t.IsSubclassOf(typeof(ScriptableObject)))
+                    {
+                        soType = t;
+                        break;
+                    }
+                }
+                if (soType != null) break;
+            }
+        }
+
+        if (soType == null || !soType.IsSubclassOf(typeof(ScriptableObject)))
+            throw new ArgumentException($"Type '{typeName}' was not found or is not a ScriptableObject subclass.");
+
+        var instance = ScriptableObject.CreateInstance(soType);
+        AssetDatabase.CreateAsset(instance, assetPath);
+        AssetDatabase.SaveAssets();
+
+        var guid = AssetDatabase.AssetPathToGUID(assetPath);
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            typeName = soType.FullName,
+            guid,
+            created = true
+        });
+    }
+
+    // ── Shared helpers for new methods ───────────────────────────────────
+
+    private static GameObject ResolveGameObjectFromInstanceId(int instanceId, string methodName)
+    {
+        var resolved = ResolveObjectByInstanceId(instanceId, "instanceId");
+        return ResolveGameObjectTarget(resolved, "instanceId");
+    }
+
+    private static (T component, GameObject ownerGo) ResolveComponentFromInstanceId<T>(int instanceId, string methodName)
+        where T : Component
+    {
+        var resolved = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var component = ResolveComponentOfTypeTarget<T>(resolved, "instanceId", typeof(T).Name);
+        return (component, component.gameObject);
+    }
+
+    private static bool TryGetFloat(JObject obj, string key, out float value)
+    {
+        value = 0f;
+        if (!obj.TryGetValue(key, out var token)) return false;
+        if (token.Type == JTokenType.Float || token.Type == JTokenType.Integer)
+        {
+            value = token.Value<float>();
+            return true;
+        }
+        return false;
     }
 
     private static string BuildFindAssetsResponse(JToken idToken, JObject root)

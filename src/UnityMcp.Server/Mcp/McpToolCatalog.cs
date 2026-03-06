@@ -1529,6 +1529,575 @@ public sealed class McpToolCatalog
                             ["description"] = "Project-relative asset path under Assets/."
                         }
                     }
+                }),
+
+            // ── Editor utility ────────────────────────────────────────────
+            new McpToolDefinition(
+                "editor.clearConsole",
+                "Clears all Unity Editor console log entries.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "editor.pausePlayMode",
+                "Pauses or unpauses Unity Editor play mode.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("paused"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["paused"] = new JsonObject { ["type"] = "boolean", ["description"] = "True to pause play mode, false to unpause." }
+                    }
+                }),
+            new McpToolDefinition(
+                "editor.undo",
+                "Performs an undo operation in the Unity Editor.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "editor.redo",
+                "Performs a redo operation in the Unity Editor.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "editor.getTags",
+                "Returns all tags defined in the Unity project.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "editor.getLayers",
+                "Returns all layers defined in the Unity project.",
+                EmptyObjectSchema()),
+
+            // ── Scene object tag / layer ──────────────────────────────────
+            new McpToolDefinition(
+                "scene.setTag",
+                "Sets the tag on a scene GameObject.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "tag"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Unity instance id of a GameObject or Component." },
+                        ["tag"] = new JsonObject { ["type"] = "string", ["description"] = "Tag name to assign." }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.setLayer",
+                "Sets the layer on a scene GameObject (and optionally all children).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "layer"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Unity instance id of a GameObject or Component." },
+                        ["layer"] = new JsonObject
+                        {
+                            ["description"] = "Layer as integer index (0-31) or layer name string.",
+                            ["oneOf"] = new JsonArray { new JsonObject { ["type"] = "integer" }, new JsonObject { ["type"] = "string" } }
+                        },
+                        ["includeChildren"] = new JsonObject { ["type"] = "boolean", ["description"] = "Whether to apply the layer to all child GameObjects as well (default false)." }
+                    }
+                }),
+
+            // ── Scene management ──────────────────────────────────────────
+            new McpToolDefinition(
+                "scene.save",
+                "Saves the active Unity scene (or a specified scene by path).",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["scenePath"] = new JsonObject { ["type"] = "string", ["description"] = "Optional scene path to save. Defaults to the active scene." }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.openScene",
+                "Opens a Unity scene from the project.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("scenePath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["scenePath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative scene path under Assets/." },
+                        ["mode"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Open mode: Single (replaces current scenes) or Additive. Default: Single.",
+                            ["enum"] = new JsonArray("Single", "Additive")
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.newScene",
+                "Creates a new empty Unity scene.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["setup"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Scene setup: EmptyScene or DefaultGameObjects. Default: DefaultGameObjects.",
+                            ["enum"] = new JsonArray("EmptyScene", "DefaultGameObjects")
+                        },
+                        ["mode"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Open mode: Single (replaces current) or Additive. Default: Single.",
+                            ["enum"] = new JsonArray("Single", "Additive")
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.closeScene",
+                "Closes/unloads an open Unity scene by path or name.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("scenePath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["scenePath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative scene path or scene name to close." },
+                        ["removeScene"] = new JsonObject { ["type"] = "boolean", ["description"] = "Whether to remove the scene from the hierarchy entirely (default true)." }
+                    }
+                }),
+            new McpToolDefinition(
+                "scene.setActiveScene",
+                "Sets the active Unity scene among the currently open scenes.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("scenePath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["scenePath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative scene path or scene name to make active." }
+                    }
+                }),
+
+            // ── Asset creation / management ───────────────────────────────
+            new McpToolDefinition(
+                "assets.createFolder",
+                "Creates a folder inside the Unity project Assets folder.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("parentFolder", "folderName"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["parentFolder"] = new JsonObject { ["type"] = "string", ["description"] = "Parent folder path, e.g. 'Assets/Scripts'." },
+                        ["folderName"] = new JsonObject { ["type"] = "string", ["description"] = "Name of the new folder to create." }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.createScript",
+                "Creates a new C# MonoBehaviour script asset in the Unity project.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path for the script, e.g. 'Assets/Scripts/MyScript.cs'." },
+                        ["content"] = new JsonObject { ["type"] = "string", ["description"] = "Optional full file content. If omitted a default MonoBehaviour stub is generated." }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.createMaterial",
+                "Creates a new Material asset in the Unity project.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path for the material, e.g. 'Assets/Materials/MyMat.mat'." },
+                        ["shaderName"] = new JsonObject { ["type"] = "string", ["description"] = "Shader name to use (default 'Standard')." }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.createPrefab",
+                "Saves a scene GameObject as a new prefab asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance id of the scene GameObject to save as a prefab." },
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path for the prefab, e.g. 'Assets/Prefabs/MyPrefab.prefab'." }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.delete",
+                "Deletes an asset from the Unity project.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative asset path to delete." }
+                    }
+                }),
+            new McpToolDefinition(
+                "assets.move",
+                "Moves or renames an asset within the Unity project.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("sourcePath", "destinationPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["sourcePath"] = new JsonObject { ["type"] = "string", ["description"] = "Current project-relative asset path." },
+                        ["destinationPath"] = new JsonObject { ["type"] = "string", ["description"] = "New project-relative asset path (including filename)." }
+                    }
+                }),
+
+            // ── Animator ─────────────────────────────────────────────────
+            new McpToolDefinition(
+                "animator.getSettings",
+                "Returns Animator component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of an Animator component or a GameObject with a single Animator.")),
+            new McpToolDefinition(
+                "animator.setSettings",
+                "Mutates Animator component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["speed"] = new JsonObject { ["type"] = "number" },
+                        ["applyRootMotion"] = new JsonObject { ["type"] = "boolean" },
+                        ["updateMode"] = EnumLikeSchema("AnimatorUpdateMode enum name or integer value."),
+                        ["cullingMode"] = EnumLikeSchema("AnimatorCullingMode enum name or integer value.")
+                    }
+                }),
+            new McpToolDefinition(
+                "animator.getParameters",
+                "Returns the list of Animator controller parameters.",
+                InstanceIdOnlySchema("Unity instance id of an Animator component or a GameObject with a single Animator.")),
+            new McpToolDefinition(
+                "animator.setParameter",
+                "Sets an Animator parameter value by name.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "parameterName", "value"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["parameterName"] = new JsonObject { ["type"] = "string", ["description"] = "Animator parameter name." },
+                        ["value"] = new JsonObject
+                        {
+                            ["description"] = "Parameter value. Use a boolean for Bool, integer for Int, number for Float. Trigger parameters ignore the value.",
+                            ["oneOf"] = new JsonArray
+                            {
+                                new JsonObject { ["type"] = "boolean" },
+                                new JsonObject { ["type"] = "integer" },
+                                new JsonObject { ["type"] = "number" },
+                                new JsonObject { ["type"] = "null" }
+                            }
+                        }
+                    }
+                }),
+
+            // ── MeshRenderer ──────────────────────────────────────────────
+            new McpToolDefinition(
+                "meshRenderer.getSettings",
+                "Returns MeshRenderer settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a MeshRenderer component or a GameObject with a single MeshRenderer.")),
+            new McpToolDefinition(
+                "meshRenderer.setSettings",
+                "Mutates MeshRenderer settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["shadowCastingMode"] = EnumLikeSchema("ShadowCastingMode enum name or integer value."),
+                        ["receiveShadows"] = new JsonObject { ["type"] = "boolean" },
+                        ["lightProbeUsage"] = EnumLikeSchema("LightProbeUsage enum name or integer value."),
+                        ["reflectionProbeUsage"] = EnumLikeSchema("ReflectionProbeUsage enum name or integer value."),
+                        ["motionVectorGenerationMode"] = EnumLikeSchema("MotionVectorGenerationMode enum name or integer value."),
+                        ["staticShadowCaster"] = new JsonObject { ["type"] = "boolean" },
+                        ["allowOcclusionWhenDynamic"] = new JsonObject { ["type"] = "boolean" }
+                    }
+                }),
+
+            // ── AudioSource ───────────────────────────────────────────────
+            new McpToolDefinition(
+                "audioSource.getSettings",
+                "Returns AudioSource component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of an AudioSource component or a GameObject with a single AudioSource.")),
+            new McpToolDefinition(
+                "audioSource.setSettings",
+                "Mutates AudioSource component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["volume"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["pitch"] = new JsonObject { ["type"] = "number" },
+                        ["loop"] = new JsonObject { ["type"] = "boolean" },
+                        ["playOnAwake"] = new JsonObject { ["type"] = "boolean" },
+                        ["mute"] = new JsonObject { ["type"] = "boolean" },
+                        ["spatialBlend"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 1, ["description"] = "0 = 2D, 1 = 3D." },
+                        ["spatialize"] = new JsonObject { ["type"] = "boolean" },
+                        ["priority"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 256 },
+                        ["dopplerLevel"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["minDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["maxDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["rolloffMode"] = EnumLikeSchema("AudioRolloffMode enum name or integer value.")
+                    }
+                }),
+
+            // ── CharacterController ───────────────────────────────────────
+            new McpToolDefinition(
+                "characterController.getSettings",
+                "Returns CharacterController component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a CharacterController component or a GameObject with a single CharacterController.")),
+            new McpToolDefinition(
+                "characterController.setSettings",
+                "Mutates CharacterController component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["height"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["center"] = Vector3Schema("CharacterController center [x,y,z]."),
+                        ["slopeLimit"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["maximum"] = 90 },
+                        ["stepOffset"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["skinWidth"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["minMoveDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["enableOverlapRecovery"] = new JsonObject { ["type"] = "boolean" }
+                    }
+                }),
+
+            // ── ParticleSystem ────────────────────────────────────────────
+            new McpToolDefinition(
+                "particleSystem.getSettings",
+                "Returns ParticleSystem component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a ParticleSystem component or a GameObject with a single ParticleSystem.")),
+            new McpToolDefinition(
+                "particleSystem.setSettings",
+                "Mutates ParticleSystem component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["duration"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["loop"] = new JsonObject { ["type"] = "boolean" },
+                        ["prewarm"] = new JsonObject { ["type"] = "boolean" },
+                        ["startDelay"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["startLifetime"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["startSpeed"] = new JsonObject { ["type"] = "number" },
+                        ["startSize"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["maxParticles"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0 },
+                        ["playOnAwake"] = new JsonObject { ["type"] = "boolean" },
+                        ["emissionRate"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 }
+                    }
+                }),
+            new McpToolDefinition(
+                "particleSystem.play",
+                "Starts playing a ParticleSystem.",
+                InstanceIdOnlySchema("Unity instance id of a ParticleSystem component or a GameObject with a single ParticleSystem.")),
+            new McpToolDefinition(
+                "particleSystem.stop",
+                "Stops a ParticleSystem (stop emitting and clear).",
+                InstanceIdOnlySchema("Unity instance id of a ParticleSystem component or a GameObject with a single ParticleSystem.")),
+
+            // ── NavMeshAgent ──────────────────────────────────────────────
+            new McpToolDefinition(
+                "navMeshAgent.getSettings",
+                "Returns NavMeshAgent component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a NavMeshAgent component or a GameObject with a single NavMeshAgent.")),
+            new McpToolDefinition(
+                "navMeshAgent.setSettings",
+                "Mutates NavMeshAgent component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["speed"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["angularSpeed"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["acceleration"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["stoppingDistance"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["height"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["areaMask"] = new JsonObject { ["type"] = "integer" },
+                        ["autoBraking"] = new JsonObject { ["type"] = "boolean" },
+                        ["obstacleAvoidanceType"] = EnumLikeSchema("ObstacleAvoidanceType enum name or integer value."),
+                        ["avoidancePriority"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 99 }
+                    }
+                }),
+
+            // ── NavMeshObstacle ───────────────────────────────────────────
+            new McpToolDefinition(
+                "navMeshObstacle.getSettings",
+                "Returns NavMeshObstacle component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a NavMeshObstacle component or a GameObject with a single NavMeshObstacle.")),
+            new McpToolDefinition(
+                "navMeshObstacle.setSettings",
+                "Mutates NavMeshObstacle component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["carving"] = new JsonObject { ["type"] = "boolean" },
+                        ["carvingMoveThreshold"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["carvingTimeToStationary"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["shape"] = EnumLikeSchema("NavMeshObstacleShape enum name or integer value."),
+                        ["center"] = Vector3Schema("NavMeshObstacle center [x,y,z]."),
+                        ["size"] = Vector3Schema("NavMeshObstacle size [x,y,z]."),
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["height"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 }
+                    }
+                }),
+
+            // ── RectTransform ─────────────────────────────────────────────
+            new McpToolDefinition(
+                "rectTransform.getSettings",
+                "Returns RectTransform component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a RectTransform component or a GameObject with a single RectTransform.")),
+            new McpToolDefinition(
+                "rectTransform.setSettings",
+                "Mutates RectTransform component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["anchorMin"] = Vector2Schema("RectTransform anchorMin [x,y]."),
+                        ["anchorMax"] = Vector2Schema("RectTransform anchorMax [x,y]."),
+                        ["anchoredPosition"] = Vector2Schema("RectTransform anchoredPosition [x,y]."),
+                        ["sizeDelta"] = Vector2Schema("RectTransform sizeDelta [x,y]."),
+                        ["pivot"] = Vector2Schema("RectTransform pivot [x,y]."),
+                        ["offsetMin"] = Vector2Schema("RectTransform offsetMin [x,y]."),
+                        ["offsetMax"] = Vector2Schema("RectTransform offsetMax [x,y].")
+                    }
+                }),
+
+            // ── Canvas ────────────────────────────────────────────────────
+            new McpToolDefinition(
+                "canvas.getSettings",
+                "Returns Canvas component settings for the target.",
+                InstanceIdOnlySchema("Unity instance id of a Canvas component or a GameObject with a single Canvas.")),
+            new McpToolDefinition(
+                "canvas.setSettings",
+                "Mutates Canvas component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["renderMode"] = EnumLikeSchema("RenderMode enum name or integer value."),
+                        ["sortingOrder"] = new JsonObject { ["type"] = "integer" },
+                        ["targetDisplay"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0 },
+                        ["pixelPerfect"] = new JsonObject { ["type"] = "boolean" },
+                        ["planeDistance"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["overrideSorting"] = new JsonObject { ["type"] = "boolean" }
+                    }
+                }),
+
+            // ── SkinnedMeshRenderer ───────────────────────────────────────
+            new McpToolDefinition(
+                "skinnedMeshRenderer.getSettings",
+                "Returns SkinnedMeshRenderer component settings for the target (includes MeshRenderer fields plus rootBone, quality, updateWhenOffscreen).",
+                InstanceIdOnlySchema("Unity instance id of a SkinnedMeshRenderer component or a GameObject with a single SkinnedMeshRenderer.")),
+            new McpToolDefinition(
+                "skinnedMeshRenderer.setSettings",
+                "Mutates SkinnedMeshRenderer component settings.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["enabled"] = new JsonObject { ["type"] = "boolean" },
+                        ["shadowCastingMode"] = EnumLikeSchema("ShadowCastingMode enum name or integer value."),
+                        ["receiveShadows"] = new JsonObject { ["type"] = "boolean" },
+                        ["lightProbeUsage"] = EnumLikeSchema("LightProbeUsage enum name or integer value."),
+                        ["reflectionProbeUsage"] = EnumLikeSchema("ReflectionProbeUsage enum name or integer value."),
+                        ["motionVectorGenerationMode"] = EnumLikeSchema("MotionVectorGenerationMode enum name or integer value."),
+                        ["staticShadowCaster"] = new JsonObject { ["type"] = "boolean" },
+                        ["allowOcclusionWhenDynamic"] = new JsonObject { ["type"] = "boolean" },
+                        ["quality"] = EnumLikeSchema("SkinQuality enum name or integer value."),
+                        ["updateWhenOffscreen"] = new JsonObject { ["type"] = "boolean" }
+                    }
+                }),
+
+            // ── ScriptableObject Creation ─────────────────────────────────
+            new McpToolDefinition(
+                "assets.createScriptableObject",
+                "Creates a new ScriptableObject asset at the given path.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath", "typeName"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative asset path (must start with Assets/ and end with .asset)." },
+                        ["typeName"] = new JsonObject { ["type"] = "string", ["description"] = "Fully qualified or short name of a ScriptableObject subclass." }
+                    }
                 })
         };
 

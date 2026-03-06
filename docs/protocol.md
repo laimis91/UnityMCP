@@ -1093,6 +1093,75 @@
     - `assetPath`
     - `parent`
     - `applied`
+- `physics.raycast`
+  - Performs a physics raycast and returns hit information.
+  - Params:
+    - `origin` (required, number array `[x, y, z]`)
+    - `direction` (required, number array `[x, y, z]`)
+    - `maxDistance` (optional, float; default `Infinity`)
+    - `layerMask` (optional, integer)
+  - Returns:
+    - `hit` (boolean)
+    - `point` (number array `[x, y, z]` or `null`)
+    - `normal` (number array `[x, y, z]` or `null`)
+    - `distance` (float or `null`)
+    - `gameObjectName` (string or `null`)
+    - `instanceId` (integer or `null`)
+- `physics.overlapSphere`
+  - Finds all colliders within a sphere.
+  - Params:
+    - `center` (required, number array `[x, y, z]`)
+    - `radius` (required, float; must be > 0)
+    - `layerMask` (optional, integer)
+  - Returns:
+    - `count` (integer)
+    - `colliders[]` (array of `{gameObjectName, instanceId}`)
+- `time.getSettings`
+  - Returns Unity Time settings.
+  - Returns:
+    - `timeScale`
+    - `fixedDeltaTime`
+    - `maximumDeltaTime`
+    - `maximumParticleDeltaTime`
+- `time.setSettings`
+  - Sets Unity Time settings.
+  - Params:
+    - `timeScale` (optional, float; >= 0)
+    - `fixedDeltaTime` (optional, float; > 0)
+  - Returns:
+    - All time settings plus `applied` flags.
+- `joint.getSettings`
+  - Returns base Joint settings for any 3D Joint component.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`, `component`
+    - `settings`: `connectedBodyInstanceId` (integer or `null`), `breakForce`, `breakTorque`, `enableCollision`, `enablePreprocessing`
+- `joint.setSettings`
+  - Mutates base Joint settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - `breakForce` (optional, float)
+    - `breakTorque` (optional, float)
+    - `enableCollision` (optional, boolean)
+  - Returns:
+    - Updated settings plus `applied` flags.
+- `renderer.getMaterials`
+  - Returns materials on any Renderer component.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`, `component`
+    - `materialCount` (integer)
+    - `materials[]` (array of `{name, instanceId}`)
+- `renderer.setMaterial`
+  - Assigns a material to a specific slot on a Renderer.
+  - Params:
+    - `instanceId` (required, integer)
+    - `materialIndex` (required, integer; 0-based)
+    - `materialAssetPath` (required, string; project-relative path)
+  - Returns:
+    - Updated materials list.
 
 ## Request Example
 ```json
@@ -2785,6 +2854,113 @@ Request:
     "assetPath": "Assets/Prefabs/Enemy.prefab",
     "position": [0, 1, 0],
     "parentInstanceId": 45458
+  }
+}
+```
+
+## `physics.raycast` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "physics.raycast",
+  "params": {
+    "origin": [0, 10, 0],
+    "direction": [0, -1, 0],
+    "maxDistance": 100,
+    "layerMask": -1
+  }
+}
+```
+
+## `physics.overlapSphere` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "physics.overlapSphere",
+  "params": {
+    "center": [0, 0, 0],
+    "radius": 5.0
+  }
+}
+```
+
+## `time.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "time.getSettings",
+  "params": {}
+}
+```
+
+## `time.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "time.setSettings",
+  "params": {
+    "timeScale": 0.5,
+    "fixedDeltaTime": 0.01
+  }
+}
+```
+
+## `joint.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "joint.getSettings",
+  "params": { "instanceId": 12345 }
+}
+```
+
+## `joint.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "joint.setSettings",
+  "params": {
+    "instanceId": 12345,
+    "breakForce": 500,
+    "enableCollision": true
+  }
+}
+```
+
+## `renderer.getMaterials` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "renderer.getMaterials",
+  "params": { "instanceId": 67890 }
+}
+```
+
+## `renderer.setMaterial` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "renderer.setMaterial",
+  "params": {
+    "instanceId": 67890,
+    "materialIndex": 0,
+    "materialAssetPath": "Assets/Materials/NewMaterial.mat"
   }
 }
 ```

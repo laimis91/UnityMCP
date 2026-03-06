@@ -562,6 +562,411 @@
         - `labels`
         - `fileExtension`
 
+### Batch 2 — Editor Utility
+
+- `editor.clearConsole`
+  - Clears all Unity Editor console log entries.
+  - Params: none
+  - Returns:
+    - `cleared`
+- `editor.pausePlayMode`
+  - Pauses or unpauses Unity Editor play mode.
+  - Params:
+    - `paused` (required, boolean)
+  - Returns:
+    - `paused`
+    - `editorState`
+- `editor.undo`
+  - Performs an undo operation in the Unity Editor.
+  - Params: none
+  - Returns:
+    - `applied`
+- `editor.redo`
+  - Performs a redo operation in the Unity Editor.
+  - Params: none
+  - Returns:
+    - `applied`
+- `editor.getTags`
+  - Returns all tags defined in the Unity project.
+  - Params: none
+  - Returns:
+    - `count`
+    - `tags`
+- `editor.getLayers`
+  - Returns all layers defined in the Unity project.
+  - Params: none
+  - Returns:
+    - `count`
+    - `layers`
+
+### Batch 2 — Scene Tag / Layer
+
+- `scene.setTag`
+  - Sets the tag on a scene GameObject.
+  - Params:
+    - `instanceId` (required, integer)
+    - `tag` (required, string)
+  - Returns:
+    - `target`
+    - `previousTag`
+    - `currentTag`
+    - `applied`
+- `scene.setLayer`
+  - Sets the layer on a scene GameObject (and optionally all children).
+  - Params:
+    - `instanceId` (required, integer)
+    - `layer` (required, integer 0-31 or string layer name)
+    - `includeChildren` (optional, boolean; default false)
+  - Returns:
+    - `target`
+    - `previousLayer`
+    - `currentLayer`
+    - `layerName`
+    - `includeChildren`
+    - `applied`
+
+### Batch 2 — Scene Management
+
+- `scene.save`
+  - Saves the active Unity scene (or a specified scene by path).
+  - Params:
+    - `scenePath` (optional, string)
+  - Returns:
+    - `saved`
+    - `sceneName`
+    - `scenePath`
+- `scene.openScene`
+  - Opens a Unity scene from the project.
+  - Params:
+    - `scenePath` (required, string)
+    - `mode` (optional, string: "Single" or "Additive"; default "Single")
+  - Returns:
+    - `sceneName`
+    - `scenePath`
+    - `isActive`
+    - `mode`
+    - `opened`
+- `scene.newScene`
+  - Creates a new empty Unity scene.
+  - Params:
+    - `setup` (optional, string: "EmptyScene" or "DefaultGameObjects"; default "DefaultGameObjects")
+    - `mode` (optional, string: "Single" or "Additive"; default "Single")
+  - Returns:
+    - `sceneName`
+    - `scenePath`
+    - `setup`
+    - `mode`
+    - `created`
+- `scene.closeScene`
+  - Closes/unloads an open Unity scene by path or name.
+  - Params:
+    - `scenePath` (required, string)
+    - `removeScene` (optional, boolean; default true)
+  - Returns:
+    - `closed`
+    - `sceneName`
+    - `scenePath`
+    - `removeScene`
+- `scene.setActiveScene`
+  - Sets the active Unity scene among the currently open scenes.
+  - Params:
+    - `scenePath` (required, string)
+  - Returns:
+    - `set`
+    - `sceneName`
+    - `scenePath`
+
+### Batch 2 — Asset Creation / Management
+
+- `assets.createFolder`
+  - Creates a folder inside the Unity project Assets folder.
+  - Params:
+    - `parentFolder` (required, string)
+    - `folderName` (required, string)
+  - Returns:
+    - `created`
+    - `assetPath`
+    - `guid`
+- `assets.createScript`
+  - Creates a new C# MonoBehaviour script asset in the Unity project.
+  - Params:
+    - `assetPath` (required, string; must end with `.cs`)
+    - `content` (optional, string; default generates a MonoBehaviour stub)
+  - Returns:
+    - `created`
+    - `assetPath`
+    - `guid`
+- `assets.createMaterial`
+  - Creates a new Material asset in the Unity project.
+  - Params:
+    - `assetPath` (required, string)
+    - `shaderName` (optional, string; default "Standard")
+  - Returns:
+    - `created`
+    - `assetPath`
+    - `guid`
+    - `shaderName`
+- `assets.createPrefab`
+  - Saves a scene GameObject as a new prefab asset.
+  - Params:
+    - `instanceId` (required, integer)
+    - `assetPath` (required, string)
+  - Returns:
+    - `created`
+    - `assetPath`
+    - `guid`
+    - `source`
+- `assets.delete`
+  - Deletes an asset from the Unity project.
+  - Params:
+    - `assetPath` (required, string)
+  - Returns:
+    - `deleted`
+    - `assetPath`
+- `assets.move`
+  - Moves or renames an asset within the Unity project.
+  - Params:
+    - `sourcePath` (required, string)
+    - `destinationPath` (required, string)
+  - Returns:
+    - `moved`
+    - `sourcePath`
+    - `destinationPath`
+    - `guid`
+
+### Batch 2 — Animator
+
+- `animator.getSettings`
+  - Returns Animator component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (enabled, speed, applyRootMotion, updateMode, cullingMode, hasController, controllerName, hasAvatar, avatarName, layerCount, parameterCount, isHuman, isInitialized)
+- `animator.setSettings`
+  - Mutates Animator component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `speed`, `applyRootMotion`, `updateMode`, `cullingMode`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `animator.getParameters`
+  - Returns the list of Animator controller parameters.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `parameterCount`
+    - `parameters` (name, type, defaultValue)
+- `animator.setParameter`
+  - Sets an Animator parameter value by name.
+  - Params:
+    - `instanceId` (required, integer)
+    - `parameterName` (required, string)
+    - `value` (required, boolean/integer/number/null)
+  - Returns:
+    - `target`
+    - `parameterName`
+    - `parameterType`
+    - `applied`
+
+### Batch 2 — MeshRenderer
+
+- `meshRenderer.getSettings`
+  - Returns MeshRenderer settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (enabled, shadowCastingMode, receiveShadows, lightProbeUsage, reflectionProbeUsage, motionVectorGenerationMode, staticShadowCaster, allowOcclusionWhenDynamic, materialCount, materials)
+- `meshRenderer.setSettings`
+  - Mutates MeshRenderer settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `shadowCastingMode`, `receiveShadows`, `lightProbeUsage`, `reflectionProbeUsage`, `motionVectorGenerationMode`, `staticShadowCaster`, `allowOcclusionWhenDynamic`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+
+### Batch 2 — AudioSource
+
+- `audioSource.getSettings`
+  - Returns AudioSource component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (enabled, clipName, volume, pitch, loop, playOnAwake, mute, spatialBlend, spatialize, priority, dopplerLevel, minDistance, maxDistance, rolloffMode, isPlaying)
+- `audioSource.setSettings`
+  - Mutates AudioSource component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `volume`, `pitch`, `loop`, `playOnAwake`, `mute`, `spatialBlend`, `spatialize`, `priority`, `dopplerLevel`, `minDistance`, `maxDistance`, `rolloffMode`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+
+### Batch 2 — CharacterController
+
+- `characterController.getSettings`
+  - Returns CharacterController component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (height, radius, center, slopeLimit, stepOffset, skinWidth, minMoveDistance, enableOverlapRecovery, isGrounded)
+- `characterController.setSettings`
+  - Mutates CharacterController component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `height`, `radius`, `center`, `slopeLimit`, `stepOffset`, `skinWidth`, `minMoveDistance`, `enableOverlapRecovery`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+
+### Batch 2 — ParticleSystem
+
+- `particleSystem.getSettings`
+  - Returns ParticleSystem component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (duration, loop, prewarm, startDelay, startLifetime, startSpeed, startSize, maxParticles, playOnAwake, emissionRate, isPlaying, isPaused, isStopped, particleCount)
+- `particleSystem.setSettings`
+  - Mutates ParticleSystem component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `duration`, `loop`, `prewarm`, `startDelay`, `startLifetime`, `startSpeed`, `startSize`, `maxParticles`, `playOnAwake`, `emissionRate`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `particleSystem.play`
+  - Starts playing a ParticleSystem.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+    - `particleCount`
+- `particleSystem.stop`
+  - Stops a ParticleSystem (stop emitting and clear).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+    - `isStopped`
+    - `particleCount`
+- `navMeshAgent.getSettings`
+  - Returns NavMeshAgent component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (speed, angularSpeed, acceleration, stoppingDistance, radius, height, areaMask, autoBraking, obstacleAvoidanceType, avoidancePriority, enabled)
+- `navMeshAgent.setSettings`
+  - Mutates NavMeshAgent component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `speed`, `angularSpeed`, `acceleration`, `stoppingDistance`, `radius`, `height`, `areaMask`, `autoBraking`, `obstacleAvoidanceType`, `avoidancePriority`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `navMeshObstacle.getSettings`
+  - Returns NavMeshObstacle component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (carving, carvingMoveThreshold, carvingTimeToStationary, shape, center, size, radius, height, enabled)
+- `navMeshObstacle.setSettings`
+  - Mutates NavMeshObstacle component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `carving`, `carvingMoveThreshold`, `carvingTimeToStationary`, `shape`, `center`, `size`, `radius`, `height`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `rectTransform.getSettings`
+  - Returns RectTransform component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (anchorMin, anchorMax, anchoredPosition, sizeDelta, pivot, offsetMin, offsetMax, rect)
+- `rectTransform.setSettings`
+  - Mutates RectTransform component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `anchorMin`, `anchorMax`, `anchoredPosition`, `sizeDelta`, `pivot`, `offsetMin`, `offsetMax`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `canvas.getSettings`
+  - Returns Canvas component settings for the target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (renderMode, sortingOrder, targetDisplay, pixelPerfect, planeDistance, overrideSorting, enabled)
+- `canvas.setSettings`
+  - Mutates Canvas component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `renderMode`, `sortingOrder`, `targetDisplay`, `pixelPerfect`, `planeDistance`, `overrideSorting`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `skinnedMeshRenderer.getSettings`
+  - Returns SkinnedMeshRenderer component settings for the target (MeshRenderer fields plus rootBone, quality, updateWhenOffscreen).
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (enabled, shadowCastingMode, receiveShadows, lightProbeUsage, reflectionProbeUsage, motionVectorGenerationMode, staticShadowCaster, allowOcclusionWhenDynamic, materialCount, materials, rootBone, quality, updateWhenOffscreen, sharedMeshName, blendShapeCount)
+- `skinnedMeshRenderer.setSettings`
+  - Mutates SkinnedMeshRenderer component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `enabled`, `shadowCastingMode`, `receiveShadows`, `lightProbeUsage`, `reflectionProbeUsage`, `motionVectorGenerationMode`, `staticShadowCaster`, `allowOcclusionWhenDynamic`, `quality`, `updateWhenOffscreen`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `assets.createScriptableObject`
+  - Creates a new ScriptableObject asset at the given path.
+  - Params:
+    - `assetPath` (required, string; must start with `Assets/`, `.asset` extension appended if missing)
+    - `typeName` (required, string; fully qualified or short name of a ScriptableObject subclass)
+  - Returns:
+    - `assetPath`
+    - `typeName`
+    - `guid`
+    - `created`
+
 ## Request Example
 ```json
 {

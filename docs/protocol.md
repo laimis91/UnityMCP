@@ -967,6 +967,133 @@
     - `guid`
     - `created`
 
+### Batch 4 — Camera Projection
+
+- `camera.getProjection`
+  - Returns camera projection settings for the target Camera component.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `projection` (orthographic, orthographicSize, fieldOfView, nearClipPlane, farClipPlane, aspect)
+- `camera.setProjection`
+  - Sets camera projection settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `orthographic`, `orthographicSize`, `fieldOfView`, `nearClipPlane`, `farClipPlane`
+  - Returns:
+    - `target`
+    - `component`
+    - `projection`
+    - `applied`
+
+### Batch 4 — SpriteRenderer
+
+- `spriteRenderer.getSettings`
+  - Returns SpriteRenderer component settings.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (spriteName, color, flipX, flipY, sortingLayerName, sortingOrder, drawMode, maskInteraction)
+- `spriteRenderer.setSettings`
+  - Sets SpriteRenderer component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `color`, `flipX`, `flipY`, `sortingLayerName`, `sortingOrder`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+
+### Batch 4 — LineRenderer
+
+- `lineRenderer.getSettings`
+  - Returns LineRenderer component settings.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (positionCount, positions, loop, startWidth, endWidth, useWorldSpace, startColor, endColor)
+- `lineRenderer.setSettings`
+  - Sets LineRenderer component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `loop`, `startWidth`, `endWidth`, `useWorldSpace`, `startColor`, `endColor`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+
+### Batch 4 — LODGroup
+
+- `lodGroup.getSettings`
+  - Returns LODGroup component settings.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (lodCount, fadeMode, animateCrossFading, size)
+- `lodGroup.setSettings`
+  - Sets LODGroup component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `fadeMode`, `animateCrossFading`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+
+### Batch 4 — CanvasGroup
+
+- `canvasGroup.getSettings`
+  - Returns CanvasGroup component settings.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings` (alpha, interactable, blocksRaycasts, ignoreParentGroups)
+- `canvasGroup.setSettings`
+  - Sets CanvasGroup component settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `alpha`, `interactable`, `blocksRaycasts`, `ignoreParentGroups`
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`
+    - `applied`
+
+### Batch 4 — Editor Recompile
+
+- `editor.recompileScripts`
+  - Requests Unity to recompile all scripts via `CompilationPipeline.RequestScriptCompilation()`.
+  - Params: none
+  - Returns:
+    - `requested`
+
+### Batch 4 — Scene Instantiate Prefab
+
+- `scene.instantiatePrefab`
+  - Instantiates a prefab into the active scene by asset path.
+  - Params:
+    - `assetPath` (required, string; project-relative path to prefab asset)
+    - `position` (optional, number array `[x, y, z]`)
+    - `parentInstanceId` (optional, integer or `null`)
+  - Returns:
+    - `instance`
+    - `assetPath`
+    - `parent`
+    - `applied`
+
 ## Request Example
 ```json
 {
@@ -2497,6 +2624,168 @@ Request:
   "id": 1,
   "method": "editor.getUndoHistory",
   "params": {}
+}
+```
+
+## `camera.getProjection` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "camera.getProjection",
+  "params": { "instanceId": 45444 }
+}
+```
+
+## `camera.setProjection` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "camera.setProjection",
+  "params": {
+    "instanceId": 45444,
+    "orthographic": true,
+    "orthographicSize": 10.0
+  }
+}
+```
+
+## `spriteRenderer.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "spriteRenderer.getSettings",
+  "params": { "instanceId": 80001 }
+}
+```
+
+## `spriteRenderer.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "spriteRenderer.setSettings",
+  "params": {
+    "instanceId": 80001,
+    "color": [1.0, 0.0, 0.0, 1.0],
+    "flipX": true,
+    "sortingOrder": 5
+  }
+}
+```
+
+## `lineRenderer.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "lineRenderer.getSettings",
+  "params": { "instanceId": 80010 }
+}
+```
+
+## `lineRenderer.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "lineRenderer.setSettings",
+  "params": {
+    "instanceId": 80010,
+    "loop": true,
+    "startWidth": 0.5,
+    "endWidth": 0.1,
+    "startColor": [1.0, 0.0, 0.0, 1.0],
+    "endColor": [0.0, 0.0, 1.0, 1.0]
+  }
+}
+```
+
+## `lodGroup.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "lodGroup.getSettings",
+  "params": { "instanceId": 80020 }
+}
+```
+
+## `lodGroup.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "lodGroup.setSettings",
+  "params": {
+    "instanceId": 80020,
+    "fadeMode": "CrossFade",
+    "animateCrossFading": true
+  }
+}
+```
+
+## `canvasGroup.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "canvasGroup.getSettings",
+  "params": { "instanceId": 80030 }
+}
+```
+
+## `canvasGroup.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "canvasGroup.setSettings",
+  "params": {
+    "instanceId": 80030,
+    "alpha": 0.5,
+    "interactable": false,
+    "blocksRaycasts": false,
+    "ignoreParentGroups": true
+  }
+}
+```
+
+## `editor.recompileScripts` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.recompileScripts",
+  "params": {}
+}
+```
+
+## `scene.instantiatePrefab` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "scene.instantiatePrefab",
+  "params": {
+    "assetPath": "Assets/Prefabs/Enemy.prefab",
+    "position": [0, 1, 0],
+    "parentInstanceId": 45458
+  }
 }
 ```
 

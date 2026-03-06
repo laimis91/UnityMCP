@@ -610,6 +610,25 @@ internal sealed class UnityMcpClient : IDisposable
                 "scene.selectByName" => BuildSelectByNameResponse(idToken, root),
                 // Batch 3: Undo History
                 "editor.getUndoHistory" => BuildGetUndoHistoryResponse(idToken),
+                // Batch 4: Camera Projection
+                "camera.getProjection" => BuildGetCameraProjectionResponse(idToken, root),
+                "camera.setProjection" => BuildSetCameraProjectionResponse(idToken, root),
+                // Batch 4: SpriteRenderer
+                "spriteRenderer.getSettings" => BuildGetSpriteRendererSettingsResponse(idToken, root),
+                "spriteRenderer.setSettings" => BuildSetSpriteRendererSettingsResponse(idToken, root),
+                // Batch 4: LineRenderer
+                "lineRenderer.getSettings" => BuildGetLineRendererSettingsResponse(idToken, root),
+                "lineRenderer.setSettings" => BuildSetLineRendererSettingsResponse(idToken, root),
+                // Batch 4: LODGroup
+                "lodGroup.getSettings" => BuildGetLODGroupSettingsResponse(idToken, root),
+                "lodGroup.setSettings" => BuildSetLODGroupSettingsResponse(idToken, root),
+                // Batch 4: CanvasGroup
+                "canvasGroup.getSettings" => BuildGetCanvasGroupSettingsResponse(idToken, root),
+                "canvasGroup.setSettings" => BuildSetCanvasGroupSettingsResponse(idToken, root),
+                // Batch 4: Editor Recompile
+                "editor.recompileScripts" => BuildRecompileScriptsResponse(idToken),
+                // Batch 4: Scene Instantiate Prefab
+                "scene.instantiatePrefab" => BuildSceneInstantiatePrefabResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -6652,6 +6671,632 @@ internal sealed class UnityMcpClient : IDisposable
             currentGroupName = Undo.GetCurrentGroupName(),
             currentGroup = Undo.GetCurrentGroup()
         });
+    }
+
+    // ── Batch 4: Camera Projection ──────────────────────────────────────
+
+    private static string BuildGetCameraProjectionResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "camera.getProjection");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var camera = ResolveComponentOfTypeTarget<Camera>(resolvedObject, "instanceId", "Camera");
+
+        var result = new
+        {
+            target = CreateObjectSummary(camera.gameObject),
+            component = CreateComponentSummary(camera),
+            projection = new
+            {
+                orthographic = camera.orthographic,
+                orthographicSize = camera.orthographicSize,
+                fieldOfView = camera.fieldOfView,
+                nearClipPlane = camera.nearClipPlane,
+                farClipPlane = camera.farClipPlane,
+                aspect = camera.aspect
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCameraProjectionResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "camera.setProjection");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var camera = ResolveComponentOfTypeTarget<Camera>(resolvedObject, "instanceId", "Camera");
+
+        var orthographic = ParseOptionalBooleanValueParameter(paramsObject, "orthographic");
+        var orthographicSize = ParseOptionalFloatParameter(paramsObject, "orthographicSize");
+        var fieldOfView = ParseOptionalFloatParameter(paramsObject, "fieldOfView");
+        var nearClipPlane = ParseOptionalFloatParameter(paramsObject, "nearClipPlane");
+        var farClipPlane = ParseOptionalFloatParameter(paramsObject, "farClipPlane");
+
+        if (!orthographic.HasValue &&
+            !orthographicSize.HasValue &&
+            !fieldOfView.HasValue &&
+            !nearClipPlane.HasValue &&
+            !farClipPlane.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one projection setting must be provided: orthographic, orthographicSize, fieldOfView, nearClipPlane, or farClipPlane.");
+        }
+
+        if (fieldOfView.HasValue && (fieldOfView.Value <= 0f || fieldOfView.Value >= 180f))
+        {
+            throw new ArgumentException("Parameter 'fieldOfView' must be greater than 0 and less than 180 degrees.");
+        }
+
+        if (orthographicSize.HasValue && orthographicSize.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'orthographicSize' must be greater than 0.");
+        }
+
+        var effectiveNear = nearClipPlane ?? camera.nearClipPlane;
+        var effectiveFar = farClipPlane ?? camera.farClipPlane;
+        if (effectiveNear <= 0f)
+        {
+            throw new ArgumentException("Parameter 'nearClipPlane' must be greater than 0.");
+        }
+
+        if (effectiveFar <= effectiveNear)
+        {
+            throw new ArgumentException("Parameter 'farClipPlane' must be greater than 'nearClipPlane'.");
+        }
+
+        Undo.RecordObject(camera, "UnityMCP Set Camera Projection");
+
+        if (orthographic.HasValue)
+        {
+            camera.orthographic = orthographic.Value;
+        }
+
+        if (orthographicSize.HasValue)
+        {
+            camera.orthographicSize = orthographicSize.Value;
+        }
+
+        if (fieldOfView.HasValue)
+        {
+            camera.fieldOfView = fieldOfView.Value;
+        }
+
+        if (nearClipPlane.HasValue)
+        {
+            camera.nearClipPlane = nearClipPlane.Value;
+        }
+
+        if (farClipPlane.HasValue)
+        {
+            camera.farClipPlane = farClipPlane.Value;
+        }
+
+        EditorUtility.SetDirty(camera);
+
+        var result = new
+        {
+            target = CreateObjectSummary(camera.gameObject),
+            component = CreateComponentSummary(camera),
+            projection = new
+            {
+                orthographic = camera.orthographic,
+                orthographicSize = camera.orthographicSize,
+                fieldOfView = camera.fieldOfView,
+                nearClipPlane = camera.nearClipPlane,
+                farClipPlane = camera.farClipPlane,
+                aspect = camera.aspect
+            },
+            applied = new
+            {
+                orthographic = orthographic.HasValue,
+                orthographicSize = orthographicSize.HasValue,
+                fieldOfView = fieldOfView.HasValue,
+                nearClipPlane = nearClipPlane.HasValue,
+                farClipPlane = farClipPlane.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 4: SpriteRenderer ─────────────────────────────────────────
+
+    private static string BuildGetSpriteRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "spriteRenderer.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var sr = ResolveComponentOfTypeTarget<SpriteRenderer>(resolvedObject, "instanceId", "SpriteRenderer");
+
+        var result = new
+        {
+            target = CreateObjectSummary(sr.gameObject),
+            component = CreateComponentSummary(sr),
+            settings = new
+            {
+                spriteName = sr.sprite != null ? sr.sprite.name : (string?)null,
+                color = CreateColorArray(sr.color),
+                flipX = sr.flipX,
+                flipY = sr.flipY,
+                sortingLayerName = sr.sortingLayerName,
+                sortingOrder = sr.sortingOrder,
+                drawMode = CreateEnumSummary(sr.drawMode),
+                maskInteraction = CreateEnumSummary(sr.maskInteraction)
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetSpriteRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "spriteRenderer.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var sr = ResolveComponentOfTypeTarget<SpriteRenderer>(resolvedObject, "instanceId", "SpriteRenderer");
+
+        var color = ParseOptionalColorParameter(paramsObject, "color");
+        var flipX = ParseOptionalBooleanValueParameter(paramsObject, "flipX");
+        var flipY = ParseOptionalBooleanValueParameter(paramsObject, "flipY");
+        var sortingLayerName = ParseOptionalStringParameter(paramsObject, "sortingLayerName");
+        var sortingOrder = ParseOptionalIntegerParameter(paramsObject, "sortingOrder");
+
+        if (!color.HasValue &&
+            !flipX.HasValue &&
+            !flipY.HasValue &&
+            sortingLayerName == null &&
+            !sortingOrder.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one SpriteRenderer setting must be provided: color, flipX, flipY, sortingLayerName, or sortingOrder.");
+        }
+
+        Undo.RecordObject(sr, "UnityMCP Set SpriteRenderer Settings");
+
+        if (color.HasValue)
+        {
+            sr.color = color.Value;
+        }
+
+        if (flipX.HasValue)
+        {
+            sr.flipX = flipX.Value;
+        }
+
+        if (flipY.HasValue)
+        {
+            sr.flipY = flipY.Value;
+        }
+
+        if (sortingLayerName != null)
+        {
+            sr.sortingLayerName = sortingLayerName;
+        }
+
+        if (sortingOrder.HasValue)
+        {
+            sr.sortingOrder = sortingOrder.Value;
+        }
+
+        EditorUtility.SetDirty(sr);
+
+        var result = new
+        {
+            target = CreateObjectSummary(sr.gameObject),
+            component = CreateComponentSummary(sr),
+            settings = new
+            {
+                spriteName = sr.sprite != null ? sr.sprite.name : (string?)null,
+                color = CreateColorArray(sr.color),
+                flipX = sr.flipX,
+                flipY = sr.flipY,
+                sortingLayerName = sr.sortingLayerName,
+                sortingOrder = sr.sortingOrder,
+                drawMode = CreateEnumSummary(sr.drawMode),
+                maskInteraction = CreateEnumSummary(sr.maskInteraction)
+            },
+            applied = new
+            {
+                color = color.HasValue,
+                flipX = flipX.HasValue,
+                flipY = flipY.HasValue,
+                sortingLayerName = sortingLayerName != null,
+                sortingOrder = sortingOrder.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 4: LineRenderer ───────────────────────────────────────────
+
+    private static string BuildGetLineRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "lineRenderer.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var lr = ResolveComponentOfTypeTarget<LineRenderer>(resolvedObject, "instanceId", "LineRenderer");
+
+        var positions = new List<object>(lr.positionCount);
+        for (var i = 0; i < lr.positionCount; i++)
+        {
+            var pos = lr.GetPosition(i);
+            positions.Add(CreateVector3Array(pos));
+        }
+
+        var result = new
+        {
+            target = CreateObjectSummary(lr.gameObject),
+            component = CreateComponentSummary(lr),
+            settings = new
+            {
+                positionCount = lr.positionCount,
+                positions,
+                loop = lr.loop,
+                startWidth = lr.startWidth,
+                endWidth = lr.endWidth,
+                useWorldSpace = lr.useWorldSpace,
+                startColor = CreateColorArray(lr.startColor),
+                endColor = CreateColorArray(lr.endColor)
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetLineRendererSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "lineRenderer.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var lr = ResolveComponentOfTypeTarget<LineRenderer>(resolvedObject, "instanceId", "LineRenderer");
+
+        var loop = ParseOptionalBooleanValueParameter(paramsObject, "loop");
+        var startWidth = ParseOptionalFloatParameter(paramsObject, "startWidth");
+        var endWidth = ParseOptionalFloatParameter(paramsObject, "endWidth");
+        var useWorldSpace = ParseOptionalBooleanValueParameter(paramsObject, "useWorldSpace");
+        var startColor = ParseOptionalColorParameter(paramsObject, "startColor");
+        var endColor = ParseOptionalColorParameter(paramsObject, "endColor");
+
+        if (!loop.HasValue &&
+            !startWidth.HasValue &&
+            !endWidth.HasValue &&
+            !useWorldSpace.HasValue &&
+            !startColor.HasValue &&
+            !endColor.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one LineRenderer setting must be provided: loop, startWidth, endWidth, useWorldSpace, startColor, or endColor.");
+        }
+
+        if (startWidth.HasValue && startWidth.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'startWidth' must be greater than or equal to 0.");
+        }
+
+        if (endWidth.HasValue && endWidth.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'endWidth' must be greater than or equal to 0.");
+        }
+
+        Undo.RecordObject(lr, "UnityMCP Set LineRenderer Settings");
+
+        if (loop.HasValue)
+        {
+            lr.loop = loop.Value;
+        }
+
+        if (startWidth.HasValue)
+        {
+            lr.startWidth = startWidth.Value;
+        }
+
+        if (endWidth.HasValue)
+        {
+            lr.endWidth = endWidth.Value;
+        }
+
+        if (useWorldSpace.HasValue)
+        {
+            lr.useWorldSpace = useWorldSpace.Value;
+        }
+
+        if (startColor.HasValue)
+        {
+            lr.startColor = startColor.Value;
+        }
+
+        if (endColor.HasValue)
+        {
+            lr.endColor = endColor.Value;
+        }
+
+        EditorUtility.SetDirty(lr);
+
+        var positionsAfter = new List<object>(lr.positionCount);
+        for (var i = 0; i < lr.positionCount; i++)
+        {
+            positionsAfter.Add(CreateVector3Array(lr.GetPosition(i)));
+        }
+
+        var result = new
+        {
+            target = CreateObjectSummary(lr.gameObject),
+            component = CreateComponentSummary(lr),
+            settings = new
+            {
+                positionCount = lr.positionCount,
+                positions = positionsAfter,
+                loop = lr.loop,
+                startWidth = lr.startWidth,
+                endWidth = lr.endWidth,
+                useWorldSpace = lr.useWorldSpace,
+                startColor = CreateColorArray(lr.startColor),
+                endColor = CreateColorArray(lr.endColor)
+            },
+            applied = new
+            {
+                loop = loop.HasValue,
+                startWidth = startWidth.HasValue,
+                endWidth = endWidth.HasValue,
+                useWorldSpace = useWorldSpace.HasValue,
+                startColor = startColor.HasValue,
+                endColor = endColor.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 4: LODGroup ───────────────────────────────────────────────
+
+    private static string BuildGetLODGroupSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "lodGroup.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var lodGroup = ResolveComponentOfTypeTarget<LODGroup>(resolvedObject, "instanceId", "LODGroup");
+
+        var result = new
+        {
+            target = CreateObjectSummary(lodGroup.gameObject),
+            component = CreateComponentSummary(lodGroup),
+            settings = new
+            {
+                lodCount = lodGroup.lodCount,
+                fadeMode = CreateEnumSummary(lodGroup.fadeMode),
+                animateCrossFading = lodGroup.animateCrossFading,
+                size = lodGroup.size
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetLODGroupSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "lodGroup.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var lodGroup = ResolveComponentOfTypeTarget<LODGroup>(resolvedObject, "instanceId", "LODGroup");
+
+        var fadeMode = ParseOptionalEnumParameter<LODFadeMode>(paramsObject, "fadeMode");
+        var animateCrossFading = ParseOptionalBooleanValueParameter(paramsObject, "animateCrossFading");
+
+        if (!fadeMode.HasValue && !animateCrossFading.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one LODGroup setting must be provided: fadeMode or animateCrossFading.");
+        }
+
+        Undo.RecordObject(lodGroup, "UnityMCP Set LODGroup Settings");
+
+        if (fadeMode.HasValue)
+        {
+            lodGroup.fadeMode = fadeMode.Value;
+        }
+
+        if (animateCrossFading.HasValue)
+        {
+            lodGroup.animateCrossFading = animateCrossFading.Value;
+        }
+
+        EditorUtility.SetDirty(lodGroup);
+
+        var result = new
+        {
+            target = CreateObjectSummary(lodGroup.gameObject),
+            component = CreateComponentSummary(lodGroup),
+            settings = new
+            {
+                lodCount = lodGroup.lodCount,
+                fadeMode = CreateEnumSummary(lodGroup.fadeMode),
+                animateCrossFading = lodGroup.animateCrossFading,
+                size = lodGroup.size
+            },
+            applied = new
+            {
+                fadeMode = fadeMode.HasValue,
+                animateCrossFading = animateCrossFading.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 4: CanvasGroup ────────────────────────────────────────────
+
+    private static string BuildGetCanvasGroupSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "canvasGroup.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var canvasGroup = ResolveComponentOfTypeTarget<CanvasGroup>(resolvedObject, "instanceId", "CanvasGroup");
+
+        var result = new
+        {
+            target = CreateObjectSummary(canvasGroup.gameObject),
+            component = CreateComponentSummary(canvasGroup),
+            settings = new
+            {
+                alpha = canvasGroup.alpha,
+                interactable = canvasGroup.interactable,
+                blocksRaycasts = canvasGroup.blocksRaycasts,
+                ignoreParentGroups = canvasGroup.ignoreParentGroups
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetCanvasGroupSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "canvasGroup.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var canvasGroup = ResolveComponentOfTypeTarget<CanvasGroup>(resolvedObject, "instanceId", "CanvasGroup");
+
+        var alpha = ParseOptionalFloatParameter(paramsObject, "alpha");
+        var interactable = ParseOptionalBooleanValueParameter(paramsObject, "interactable");
+        var blocksRaycasts = ParseOptionalBooleanValueParameter(paramsObject, "blocksRaycasts");
+        var ignoreParentGroups = ParseOptionalBooleanValueParameter(paramsObject, "ignoreParentGroups");
+
+        if (!alpha.HasValue &&
+            !interactable.HasValue &&
+            !blocksRaycasts.HasValue &&
+            !ignoreParentGroups.HasValue)
+        {
+            throw new ArgumentException(
+                "At least one CanvasGroup setting must be provided: alpha, interactable, blocksRaycasts, or ignoreParentGroups.");
+        }
+
+        if (alpha.HasValue && (alpha.Value < 0f || alpha.Value > 1f))
+        {
+            throw new ArgumentException("Parameter 'alpha' must be between 0 and 1.");
+        }
+
+        Undo.RecordObject(canvasGroup, "UnityMCP Set CanvasGroup Settings");
+
+        if (alpha.HasValue)
+        {
+            canvasGroup.alpha = alpha.Value;
+        }
+
+        if (interactable.HasValue)
+        {
+            canvasGroup.interactable = interactable.Value;
+        }
+
+        if (blocksRaycasts.HasValue)
+        {
+            canvasGroup.blocksRaycasts = blocksRaycasts.Value;
+        }
+
+        if (ignoreParentGroups.HasValue)
+        {
+            canvasGroup.ignoreParentGroups = ignoreParentGroups.Value;
+        }
+
+        EditorUtility.SetDirty(canvasGroup);
+
+        var result = new
+        {
+            target = CreateObjectSummary(canvasGroup.gameObject),
+            component = CreateComponentSummary(canvasGroup),
+            settings = new
+            {
+                alpha = canvasGroup.alpha,
+                interactable = canvasGroup.interactable,
+                blocksRaycasts = canvasGroup.blocksRaycasts,
+                ignoreParentGroups = canvasGroup.ignoreParentGroups
+            },
+            applied = new
+            {
+                alpha = alpha.HasValue,
+                interactable = interactable.HasValue,
+                blocksRaycasts = blocksRaycasts.HasValue,
+                ignoreParentGroups = ignoreParentGroups.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 4: Editor Recompile Scripts ────────────────────────────────
+
+    private static string BuildRecompileScriptsResponse(JToken idToken)
+    {
+        UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+        return UnityMcpProtocol.CreateResult(idToken, new { requested = true });
+    }
+
+    // ── Batch 4: Scene Instantiate Prefab ───────────────────────────────
+
+    private static string BuildSceneInstantiatePrefabResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "scene.instantiatePrefab");
+        var assetPath = NormalizeAndValidateAssetPath(ParseRequiredStringParameter(paramsObject, "assetPath"));
+        var position = ParseOptionalVector3Parameter(paramsObject, "position");
+        var parentInstanceId = ParseOptionalNullableIntegerParameter(paramsObject, "parentInstanceId");
+
+        var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        if (prefabAsset == null)
+        {
+            throw new ArgumentException($"No prefab found at asset path '{assetPath}'.");
+        }
+
+        var activeScene = SceneManager.GetActiveScene();
+        if (!activeScene.IsValid() || !activeScene.isLoaded)
+        {
+            throw new InvalidOperationException("No active loaded scene is available for prefab instantiation.");
+        }
+
+        GameObject? parentGameObject = null;
+        if (parentInstanceId.IsSpecified && parentInstanceId.HasValue)
+        {
+            var resolvedParentObject = ResolveObjectByInstanceId(parentInstanceId.Value!.Value, "parentInstanceId");
+            parentGameObject = ResolveSceneGameObjectTarget(resolvedParentObject, "parentInstanceId");
+            if (parentGameObject.scene != activeScene)
+            {
+                throw new ArgumentException("Cross-scene parenting is not supported. Parent must be in the active loaded scene.");
+            }
+        }
+
+        var instanceObject = PrefabUtility.InstantiatePrefab(prefabAsset, activeScene);
+        if (instanceObject is not GameObject instance)
+        {
+            throw new InvalidOperationException($"Unity did not return a GameObject when instantiating prefab '{assetPath}'.");
+        }
+
+        Undo.RegisterCreatedObjectUndo(instance, "UnityMCP Scene Instantiate Prefab");
+
+        if (parentGameObject != null)
+        {
+            Undo.SetTransformParent(instance.transform, parentGameObject.transform, "UnityMCP Scene Instantiate Prefab");
+        }
+
+        if (position.HasValue)
+        {
+            Undo.RecordObject(instance.transform, "UnityMCP Scene Instantiate Prefab");
+            instance.transform.position = position.Value;
+        }
+
+        Selection.activeGameObject = instance;
+
+        var result = new
+        {
+            instance = CreateObjectSummary(instance),
+            assetPath,
+            parent = parentGameObject != null ? CreateObjectSummary(parentGameObject) : null,
+            applied = new
+            {
+                position = position.HasValue,
+                parent = parentGameObject != null
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
     // ── Shared helpers for new methods ───────────────────────────────────

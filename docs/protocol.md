@@ -2348,6 +2348,158 @@ Success response (example):
 }
 ```
 
+## `navMesh.bake` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "navMesh.bake",
+  "params": {}
+}
+```
+
+## `terrain.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "terrain.getSettings",
+  "params": { "instanceId": 12345 }
+}
+```
+
+## `terrain.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "terrain.setSettings",
+  "params": {
+    "instanceId": 12345,
+    "basemapDistance": 150.0,
+    "drawHeightmap": true,
+    "drawInstanced": true,
+    "shadowCastingMode": "On"
+  }
+}
+```
+
+## `build.getSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "build.getSettings",
+  "params": {}
+}
+```
+
+## `build.setSettings` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "build.setSettings",
+  "params": {
+    "developmentBuild": true,
+    "outputPath": "Builds/MyGame"
+  }
+}
+```
+
+## `build.build` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "build.build",
+  "params": { "outputPath": "Builds/MyGame" }
+}
+```
+
+## `editor.addTag` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.addTag",
+  "params": { "tag": "Interactable" }
+}
+```
+
+## `editor.removeTag` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.removeTag",
+  "params": { "tag": "Interactable" }
+}
+```
+
+## `editor.addLayer` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.addLayer",
+  "params": { "layer": "Interactables" }
+}
+```
+
+## `editor.removeLayer` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.removeLayer",
+  "params": { "layer": "Interactables" }
+}
+```
+
+## `scene.getSelectionDetails` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "scene.getSelectionDetails",
+  "params": {}
+}
+```
+
+## `scene.selectByName` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "scene.selectByName",
+  "params": { "name": "MainCamera", "exactMatch": true }
+}
+```
+
+## `editor.getUndoHistory` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "editor.getUndoHistory",
+  "params": {}
+}
+```
+
 ## Error Response Example
 ```json
 {

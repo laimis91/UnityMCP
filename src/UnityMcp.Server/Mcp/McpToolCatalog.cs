@@ -2243,7 +2243,147 @@ public sealed class McpToolCatalog
             new McpToolDefinition(
                 "editor.getUndoHistory",
                 "Returns the current undo group name and group index.",
-                EmptyObjectSchema())
+                EmptyObjectSchema()),
+
+            // ── Batch 4: Camera Projection ────────────────────────────────────
+            new McpToolDefinition(
+                "camera.getProjection",
+                "Returns camera projection settings: orthographic, orthographicSize, fieldOfView, nearClipPlane, farClipPlane, aspect.",
+                InstanceIdOnlySchema("Instance ID of a Camera component or a GameObject with a Camera.")),
+            new McpToolDefinition(
+                "camera.setProjection",
+                "Sets camera projection settings: orthographic, orthographicSize, fieldOfView, nearClipPlane, farClipPlane.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a Camera component or a GameObject with a Camera." },
+                        ["orthographic"] = new JsonObject { ["type"] = "boolean", ["description"] = "Enable orthographic projection." },
+                        ["orthographicSize"] = new JsonObject { ["type"] = "number", ["description"] = "Orthographic camera half-size." },
+                        ["fieldOfView"] = new JsonObject { ["type"] = "number", ["description"] = "Field of view in degrees (perspective mode)." },
+                        ["nearClipPlane"] = new JsonObject { ["type"] = "number", ["description"] = "Near clipping plane distance." },
+                        ["farClipPlane"] = new JsonObject { ["type"] = "number", ["description"] = "Far clipping plane distance." }
+                    }
+                }),
+
+            // ── Batch 4: SpriteRenderer ───────────────────────────────────────
+            new McpToolDefinition(
+                "spriteRenderer.getSettings",
+                "Returns SpriteRenderer settings: spriteName, color, flipX, flipY, sortingLayerName, sortingOrder, drawMode, maskInteraction.",
+                InstanceIdOnlySchema("Instance ID of a SpriteRenderer component or a GameObject with a SpriteRenderer.")),
+            new McpToolDefinition(
+                "spriteRenderer.setSettings",
+                "Sets SpriteRenderer settings: color, flipX, flipY, sortingLayerName, sortingOrder.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a SpriteRenderer component or a GameObject with a SpriteRenderer." },
+                        ["color"] = ColorSchema("Sprite color as [r, g, b, a]."),
+                        ["flipX"] = new JsonObject { ["type"] = "boolean", ["description"] = "Flip the sprite horizontally." },
+                        ["flipY"] = new JsonObject { ["type"] = "boolean", ["description"] = "Flip the sprite vertically." },
+                        ["sortingLayerName"] = new JsonObject { ["type"] = "string", ["description"] = "Sorting layer name." },
+                        ["sortingOrder"] = new JsonObject { ["type"] = "integer", ["description"] = "Order within sorting layer." }
+                    }
+                }),
+
+            // ── Batch 4: LineRenderer ─────────────────────────────────────────
+            new McpToolDefinition(
+                "lineRenderer.getSettings",
+                "Returns LineRenderer settings: positionCount, positions, loop, startWidth, endWidth, useWorldSpace, startColor, endColor.",
+                InstanceIdOnlySchema("Instance ID of a LineRenderer component or a GameObject with a LineRenderer.")),
+            new McpToolDefinition(
+                "lineRenderer.setSettings",
+                "Sets LineRenderer settings: loop, startWidth, endWidth, useWorldSpace, startColor, endColor.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a LineRenderer component or a GameObject with a LineRenderer." },
+                        ["loop"] = new JsonObject { ["type"] = "boolean", ["description"] = "Connect the first and last positions." },
+                        ["startWidth"] = new JsonObject { ["type"] = "number", ["description"] = "Width at the start of the line." },
+                        ["endWidth"] = new JsonObject { ["type"] = "number", ["description"] = "Width at the end of the line." },
+                        ["useWorldSpace"] = new JsonObject { ["type"] = "boolean", ["description"] = "Use world space coordinates." },
+                        ["startColor"] = ColorSchema("Line start color as [r, g, b, a]."),
+                        ["endColor"] = ColorSchema("Line end color as [r, g, b, a].")
+                    }
+                }),
+
+            // ── Batch 4: LODGroup ─────────────────────────────────────────────
+            new McpToolDefinition(
+                "lodGroup.getSettings",
+                "Returns LODGroup settings: lodCount, fadeMode, animateCrossFading, size.",
+                InstanceIdOnlySchema("Instance ID of a LODGroup component or a GameObject with a LODGroup.")),
+            new McpToolDefinition(
+                "lodGroup.setSettings",
+                "Sets LODGroup settings: fadeMode, animateCrossFading.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a LODGroup component or a GameObject with a LODGroup." },
+                        ["fadeMode"] = EnumLikeSchema("LODFadeMode enum name or integer value."),
+                        ["animateCrossFading"] = new JsonObject { ["type"] = "boolean", ["description"] = "Enable cross-fade animation." }
+                    }
+                }),
+
+            // ── Batch 4: CanvasGroup ──────────────────────────────────────────
+            new McpToolDefinition(
+                "canvasGroup.getSettings",
+                "Returns CanvasGroup settings: alpha, interactable, blocksRaycasts, ignoreParentGroups.",
+                InstanceIdOnlySchema("Instance ID of a CanvasGroup component or a GameObject with a CanvasGroup.")),
+            new McpToolDefinition(
+                "canvasGroup.setSettings",
+                "Sets CanvasGroup settings: alpha, interactable, blocksRaycasts, ignoreParentGroups.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Instance ID of a CanvasGroup component or a GameObject with a CanvasGroup." },
+                        ["alpha"] = new JsonObject { ["type"] = "number", ["description"] = "Group alpha (0-1).", ["minimum"] = 0, ["maximum"] = 1 },
+                        ["interactable"] = new JsonObject { ["type"] = "boolean", ["description"] = "Is the group interactable." },
+                        ["blocksRaycasts"] = new JsonObject { ["type"] = "boolean", ["description"] = "Does the group block raycasts." },
+                        ["ignoreParentGroups"] = new JsonObject { ["type"] = "boolean", ["description"] = "Ignore parent CanvasGroup settings." }
+                    }
+                }),
+
+            // ── Batch 4: Editor Recompile ─────────────────────────────────────
+            new McpToolDefinition(
+                "editor.recompileScripts",
+                "Requests Unity to recompile all scripts via CompilationPipeline.RequestScriptCompilation().",
+                EmptyObjectSchema()),
+
+            // ── Batch 4: Scene Instantiate Prefab ─────────────────────────────
+            new McpToolDefinition(
+                "scene.instantiatePrefab",
+                "Instantiates a prefab into the active scene by asset path, with optional position and parent.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path to the prefab asset (e.g. Assets/Prefabs/Enemy.prefab)." },
+                        ["position"] = Vector3Schema("World-space position [x, y, z] for the instantiated prefab."),
+                        ["parentInstanceId"] = NullableIntegerSchema("Instance ID of a parent GameObject, or null for scene root.")
+                    }
+                })
         };
 
         Tools = tools;

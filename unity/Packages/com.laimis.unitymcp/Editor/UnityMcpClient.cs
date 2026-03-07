@@ -8108,7 +8108,7 @@ internal sealed class UnityMcpClient : IDisposable
         for (int i = 0; i < exposedParams.arraySize; i++)
         {
             var param = exposedParams.GetArrayElementAtIndex(i);
-            var nameProperty = param.FindPropertyRelative("nameString");
+            var nameProperty = param.FindPropertyRelative("name");
             if (nameProperty != null && nameProperty.stringValue == parameterName)
             {
                 var valueProperty = param.FindPropertyRelative("value");

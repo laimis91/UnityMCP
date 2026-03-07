@@ -8095,38 +8095,67 @@ internal sealed class UnityMcpClient : IDisposable
         if (mixer == null)
             throw new ArgumentException($"No AudioMixer found at path '{mixerAssetPath}'.");
 
-        // Use SerializedObject to read/write exposed parameters reliably.
-        // AudioMixer.SetFloat() only works when the mixer is live in the audio graph
-        // (i.e. an AudioSource using it is actively playing). SerializedObject works
-        // regardless of play mode or audio graph state.
+        // Step 1: Find the GUID for this parameter from m_ExposedParameters.
+        // m_ExposedParameters only stores { m_GUID, name } — no value field.
+        // The actual float values live in each snapshot's m_FloatValues, keyed by GUID.
         var so = new SerializedObject(mixer);
         var exposedParams = so.FindProperty("m_ExposedParameters");
 
-        float previousValue = 0f;
-        bool parameterFound = false;
-
+        string targetGuid = null;
         for (int i = 0; i < exposedParams.arraySize; i++)
         {
             var param = exposedParams.GetArrayElementAtIndex(i);
             var nameProperty = param.FindPropertyRelative("name");
             if (nameProperty != null && nameProperty.stringValue == parameterName)
             {
-                var valueProperty = param.FindPropertyRelative("value");
-                if (valueProperty != null)
-                {
-                    so.Update();
-                    previousValue = valueProperty.floatValue;
-                    valueProperty.floatValue = value;
-                    so.ApplyModifiedProperties();
-                    EditorUtility.SetDirty(mixer);
-                    parameterFound = true;
-                }
+                var guidProperty = param.FindPropertyRelative("m_GUID");
+                targetGuid = guidProperty?.stringValue;
                 break;
             }
         }
 
-        if (!parameterFound)
+        if (targetGuid == null)
             throw new ArgumentException($"Parameter '{parameterName}' not found in mixer exposed parameters on '{mixer.name}'. Use audio.getMixerSettings to list exposed parameters.");
+
+        // Step 2: Read the current value and write the new value into all snapshots.
+        // Values are stored in AudioMixerSnapshotController.m_FloatValues as a
+        // serialized dictionary with keys "first" (GUID) and "second" (float value).
+        float previousValue = 0f;
+        bool valueWritten = false;
+        var snapshots = mixer.snapshots;
+
+        foreach (var snapshot in snapshots)
+        {
+            var snapshotSo = new SerializedObject(snapshot);
+            var floatValues = snapshotSo.FindProperty("m_FloatValues");
+            if (floatValues == null) continue;
+
+            for (int i = 0; i < floatValues.arraySize; i++)
+            {
+                var entry = floatValues.GetArrayElementAtIndex(i);
+                var key = entry.FindPropertyRelative("first");
+                if (key != null && key.stringValue == targetGuid)
+                {
+                    var valueProperty = entry.FindPropertyRelative("second");
+                    if (valueProperty != null)
+                    {
+                        snapshotSo.Update();
+                        if (!valueWritten) previousValue = valueProperty.floatValue;
+                        valueProperty.floatValue = value;
+                        snapshotSo.ApplyModifiedProperties();
+                        EditorUtility.SetDirty(snapshot);
+                        valueWritten = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        EditorUtility.SetDirty(mixer);
+        AssetDatabase.SaveAssets();
+
+        if (!valueWritten)
+            throw new ArgumentException($"Parameter '{parameterName}' (GUID: {targetGuid}) found in exposed parameters but no matching entry in snapshot m_FloatValues. The parameter may not have a value set in any snapshot.");
 
         var result = new
         {

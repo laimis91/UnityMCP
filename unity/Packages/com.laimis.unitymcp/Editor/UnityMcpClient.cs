@@ -629,6 +629,18 @@ internal sealed class UnityMcpClient : IDisposable
                 "editor.recompileScripts" => BuildRecompileScriptsResponse(idToken),
                 // Batch 4: Scene Instantiate Prefab
                 "scene.instantiatePrefab" => BuildSceneInstantiatePrefabResponse(idToken, root),
+                // Batch 5: Physics Queries
+                "physics.raycast" => BuildPhysicsRaycastResponse(idToken, root),
+                "physics.overlapSphere" => BuildPhysicsOverlapSphereResponse(idToken, root),
+                // Batch 5: Time
+                "time.getSettings" => BuildGetTimeSettingsResponse(idToken),
+                "time.setSettings" => BuildSetTimeSettingsResponse(idToken, root),
+                // Batch 5: Joint (base 3D)
+                "joint.getSettings" => BuildGetJointSettingsResponse(idToken, root),
+                "joint.setSettings" => BuildSetJointSettingsResponse(idToken, root),
+                // Batch 5: Renderer
+                "renderer.getMaterials" => BuildGetRendererMaterialsResponse(idToken, root),
+                "renderer.setMaterial" => BuildSetRendererMaterialResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -1102,6 +1114,8 @@ internal sealed class UnityMcpClient : IDisposable
         var rigidbody = ResolveComponentOfTypeTarget<Rigidbody>(resolvedObject, "instanceId", "Rigidbody");
 
         var mass = ParseOptionalFloatParameter(paramsObject, "mass");
+        var drag = ParseOptionalFloatParameter(paramsObject, "drag");
+        var angularDrag = ParseOptionalFloatParameter(paramsObject, "angularDrag");
         var useGravity = ParseOptionalBooleanValueParameter(paramsObject, "useGravity");
         var isKinematic = ParseOptionalBooleanValueParameter(paramsObject, "isKinematic");
         var detectCollisions = ParseOptionalBooleanValueParameter(paramsObject, "detectCollisions");
@@ -1110,6 +1124,8 @@ internal sealed class UnityMcpClient : IDisposable
         var collisionDetectionMode = ParseOptionalEnumParameter<CollisionDetectionMode>(paramsObject, "collisionDetectionMode");
 
         if (!mass.HasValue &&
+            !drag.HasValue &&
+            !angularDrag.HasValue &&
             !useGravity.HasValue &&
             !isKinematic.HasValue &&
             !detectCollisions.HasValue &&
@@ -1118,12 +1134,22 @@ internal sealed class UnityMcpClient : IDisposable
             !collisionDetectionMode.HasValue)
         {
             throw new ArgumentException(
-                "At least one rigidbody setting must be provided: mass, useGravity, isKinematic, detectCollisions, constraints, interpolation, or collisionDetectionMode.");
+                "At least one rigidbody setting must be provided: mass, drag, angularDrag, useGravity, isKinematic, detectCollisions, constraints, interpolation, or collisionDetectionMode.");
         }
 
         if (mass.HasValue && mass.Value <= 0f)
         {
             throw new ArgumentException("Parameter 'mass' must be greater than 0.");
+        }
+
+        if (drag.HasValue && drag.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'drag' must be greater than or equal to 0.");
+        }
+
+        if (angularDrag.HasValue && angularDrag.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'angularDrag' must be greater than or equal to 0.");
         }
 
         Undo.RecordObject(rigidbody, "UnityMCP Set Rigidbody Settings");
@@ -1132,6 +1158,18 @@ internal sealed class UnityMcpClient : IDisposable
         {
             rigidbody.mass = mass.Value;
         }
+
+        #pragma warning disable CS0618
+        if (drag.HasValue)
+        {
+            rigidbody.drag = drag.Value;
+        }
+
+        if (angularDrag.HasValue)
+        {
+            rigidbody.angularDrag = angularDrag.Value;
+        }
+        #pragma warning restore CS0618
 
         if (useGravity.HasValue)
         {
@@ -1173,6 +1211,8 @@ internal sealed class UnityMcpClient : IDisposable
             applied = new
             {
                 mass = mass.HasValue,
+                drag = drag.HasValue,
+                angularDrag = angularDrag.HasValue,
                 useGravity = useGravity.HasValue,
                 isKinematic = isKinematic.HasValue,
                 detectCollisions = detectCollisions.HasValue,
@@ -7301,6 +7341,337 @@ internal sealed class UnityMcpClient : IDisposable
         return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
+    // ── Batch 5: Physics Queries ──────────────────────────────────────
+
+    private static string BuildPhysicsRaycastResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "physics.raycast");
+
+        if (!paramsObject.TryGetValue("origin", out var originToken))
+            throw new ArgumentException("Parameter 'origin' is required.");
+        var origin = ParseVector3Parameter(originToken, "origin");
+
+        if (!paramsObject.TryGetValue("direction", out var directionToken))
+            throw new ArgumentException("Parameter 'direction' is required.");
+        var direction = ParseVector3Parameter(directionToken, "direction");
+
+        var maxDistance = Mathf.Infinity;
+        if (paramsObject.TryGetValue("maxDistance", out var maxDistToken) &&
+            (maxDistToken.Type == JTokenType.Float || maxDistToken.Type == JTokenType.Integer))
+        {
+            maxDistance = maxDistToken.Value<float>();
+        }
+
+        var layerMask = Physics.DefaultRaycastLayers;
+        if (paramsObject.TryGetValue("layerMask", out var layerMaskToken) &&
+            layerMaskToken.Type == JTokenType.Integer)
+        {
+            layerMask = layerMaskToken.Value<int>();
+        }
+
+        object result;
+        if (Physics.Raycast(origin, direction, out var hit, maxDistance, layerMask))
+        {
+            result = new
+            {
+                hit = true,
+                point = CreateVector3Array(hit.point),
+                normal = CreateVector3Array(hit.normal),
+                distance = hit.distance,
+                gameObjectName = hit.collider.gameObject.name,
+                instanceId = hit.collider.gameObject.GetInstanceID()
+            };
+        }
+        else
+        {
+            result = new
+            {
+                hit = false,
+                point = (object?)null,
+                normal = (object?)null,
+                distance = (object?)null,
+                gameObjectName = (object?)null,
+                instanceId = (object?)null
+            };
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildPhysicsOverlapSphereResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "physics.overlapSphere");
+
+        if (!paramsObject.TryGetValue("center", out var centerToken))
+            throw new ArgumentException("Parameter 'center' is required.");
+        var center = ParseVector3Parameter(centerToken, "center");
+
+        if (!paramsObject.TryGetValue("radius", out var radiusToken) ||
+            (radiusToken.Type != JTokenType.Float && radiusToken.Type != JTokenType.Integer))
+            throw new ArgumentException("Parameter 'radius' is required and must be a number.");
+        var radius = radiusToken.Value<float>();
+        if (radius <= 0f)
+            throw new ArgumentException("Parameter 'radius' must be greater than 0.");
+
+        var layerMask = Physics.AllLayers;
+        if (paramsObject.TryGetValue("layerMask", out var layerMaskToken) &&
+            layerMaskToken.Type == JTokenType.Integer)
+        {
+            layerMask = layerMaskToken.Value<int>();
+        }
+
+        var colliders = Physics.OverlapSphere(center, radius, layerMask);
+        var items = new object[colliders.Length];
+        for (var i = 0; i < colliders.Length; i++)
+        {
+            items[i] = new
+            {
+                gameObjectName = colliders[i].gameObject.name,
+                instanceId = colliders[i].gameObject.GetInstanceID()
+            };
+        }
+
+        var result = new
+        {
+            count = colliders.Length,
+            colliders = items
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 5: Time ─────────────────────────────────────────────────
+
+    private static string BuildGetTimeSettingsResponse(JToken idToken)
+    {
+        var result = new
+        {
+            timeScale = Time.timeScale,
+            fixedDeltaTime = Time.fixedDeltaTime,
+            maximumDeltaTime = Time.maximumDeltaTime,
+            maximumParticleDeltaTime = Time.maximumParticleDeltaTime
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetTimeSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "time.setSettings");
+
+        var timeScale = ParseOptionalFloatParameter(paramsObject, "timeScale");
+        var fixedDeltaTime = ParseOptionalFloatParameter(paramsObject, "fixedDeltaTime");
+
+        if (!timeScale.HasValue && !fixedDeltaTime.HasValue)
+        {
+            throw new ArgumentException("At least one time setting must be provided: timeScale or fixedDeltaTime.");
+        }
+
+        if (timeScale.HasValue && timeScale.Value < 0f)
+        {
+            throw new ArgumentException("Parameter 'timeScale' must be greater than or equal to 0.");
+        }
+
+        if (fixedDeltaTime.HasValue && fixedDeltaTime.Value <= 0f)
+        {
+            throw new ArgumentException("Parameter 'fixedDeltaTime' must be greater than 0.");
+        }
+
+        if (timeScale.HasValue)
+        {
+            Time.timeScale = timeScale.Value;
+        }
+
+        if (fixedDeltaTime.HasValue)
+        {
+            Time.fixedDeltaTime = fixedDeltaTime.Value;
+        }
+
+        var result = new
+        {
+            timeScale = Time.timeScale,
+            fixedDeltaTime = Time.fixedDeltaTime,
+            maximumDeltaTime = Time.maximumDeltaTime,
+            maximumParticleDeltaTime = Time.maximumParticleDeltaTime,
+            applied = new
+            {
+                timeScale = timeScale.HasValue,
+                fixedDeltaTime = fixedDeltaTime.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 5: Joint (base 3D) ──────────────────────────────────────
+
+    private static string BuildGetJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "joint.getSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<Joint>(resolvedObject, "instanceId", "Joint");
+
+        var connectedBody = joint.connectedBody;
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = new
+            {
+                connectedBodyInstanceId = connectedBody != null ? (int?)connectedBody.gameObject.GetInstanceID() : null,
+                breakForce = joint.breakForce,
+                breakTorque = joint.breakTorque,
+                enableCollision = joint.enableCollision,
+                enablePreprocessing = joint.enablePreprocessing
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetJointSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "joint.setSettings");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var joint = ResolveComponentOfTypeTarget<Joint>(resolvedObject, "instanceId", "Joint");
+
+        var breakForce = ParseOptionalFloatParameter(paramsObject, "breakForce");
+        var breakTorque = ParseOptionalFloatParameter(paramsObject, "breakTorque");
+        var enableCollision = ParseOptionalBooleanValueParameter(paramsObject, "enableCollision");
+
+        if (!breakForce.HasValue && !breakTorque.HasValue && !enableCollision.HasValue)
+        {
+            throw new ArgumentException("At least one joint setting must be provided: breakForce, breakTorque, or enableCollision.");
+        }
+
+        Undo.RecordObject(joint, "UnityMCP Set Joint Settings");
+
+        if (breakForce.HasValue)
+        {
+            joint.breakForce = breakForce.Value;
+        }
+
+        if (breakTorque.HasValue)
+        {
+            joint.breakTorque = breakTorque.Value;
+        }
+
+        if (enableCollision.HasValue)
+        {
+            joint.enableCollision = enableCollision.Value;
+        }
+
+        EditorUtility.SetDirty(joint);
+
+        var connectedBody = joint.connectedBody;
+        var result = new
+        {
+            target = CreateObjectSummary(joint.gameObject),
+            component = CreateComponentSummary(joint),
+            settings = new
+            {
+                connectedBodyInstanceId = connectedBody != null ? (int?)connectedBody.gameObject.GetInstanceID() : null,
+                breakForce = joint.breakForce,
+                breakTorque = joint.breakTorque,
+                enableCollision = joint.enableCollision,
+                enablePreprocessing = joint.enablePreprocessing
+            },
+            applied = new
+            {
+                breakForce = breakForce.HasValue,
+                breakTorque = breakTorque.HasValue,
+                enableCollision = enableCollision.HasValue
+            }
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    // ── Batch 5: Renderer ─────────────────────────────────────────────
+
+    private static string BuildGetRendererMaterialsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "renderer.getMaterials");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var renderer = ResolveComponentOfTypeTarget<Renderer>(resolvedObject, "instanceId", "Renderer");
+
+        var sharedMaterials = renderer.sharedMaterials;
+        var materials = new object[sharedMaterials.Length];
+        for (var i = 0; i < sharedMaterials.Length; i++)
+        {
+            var mat = sharedMaterials[i];
+            materials[i] = mat != null
+                ? new { name = mat.name, instanceId = (int?)mat.GetInstanceID() }
+                : new { name = (string?)null, instanceId = (int?)null };
+        }
+
+        var result = new
+        {
+            target = CreateObjectSummary(renderer.gameObject),
+            component = CreateComponentSummary(renderer),
+            materialCount = sharedMaterials.Length,
+            materials
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
+    private static string BuildSetRendererMaterialResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "renderer.setMaterial");
+        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
+        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
+        var renderer = ResolveComponentOfTypeTarget<Renderer>(resolvedObject, "instanceId", "Renderer");
+
+        var materialIndex = ParseRequiredIntegerParameter(paramsObject, "materialIndex");
+        var materialAssetPath = ParseRequiredStringParameter(paramsObject, "materialAssetPath");
+
+        var sharedMaterials = renderer.sharedMaterials;
+        if (materialIndex < 0 || materialIndex >= sharedMaterials.Length)
+        {
+            throw new ArgumentException($"Parameter 'materialIndex' ({materialIndex}) is out of range. Renderer has {sharedMaterials.Length} material slot(s).");
+        }
+
+        var material = AssetDatabase.LoadAssetAtPath<Material>(materialAssetPath);
+        if (material == null)
+        {
+            throw new ArgumentException($"No Material found at asset path '{materialAssetPath}'.");
+        }
+
+        Undo.RecordObject(renderer, "UnityMCP Set Renderer Material");
+
+        sharedMaterials[materialIndex] = material;
+        renderer.sharedMaterials = sharedMaterials;
+
+        EditorUtility.SetDirty(renderer);
+
+        // Return updated materials list
+        var updatedMaterials = renderer.sharedMaterials;
+        var materialsResult = new object[updatedMaterials.Length];
+        for (var i = 0; i < updatedMaterials.Length; i++)
+        {
+            var mat = updatedMaterials[i];
+            materialsResult[i] = mat != null
+                ? new { name = mat.name, instanceId = (int?)mat.GetInstanceID() }
+                : new { name = (string?)null, instanceId = (int?)null };
+        }
+
+        var result = new
+        {
+            target = CreateObjectSummary(renderer.gameObject),
+            component = CreateComponentSummary(renderer),
+            materialIndex,
+            materialAssetPath,
+            materialCount = updatedMaterials.Length,
+            materials = materialsResult
+        };
+
+        return UnityMcpProtocol.CreateResult(idToken, result);
+    }
+
     // ── Shared helpers for new methods ───────────────────────────────────
 
     private static GameObject ResolveGameObjectFromInstanceId(int instanceId, string methodName)
@@ -9837,11 +10208,14 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
+    #pragma warning disable CS0618
     private static object CreateRigidbodySettingsSnapshot(Rigidbody rigidbody)
     {
         return new
         {
             mass = rigidbody.mass,
+            drag = rigidbody.drag,
+            angularDrag = rigidbody.angularDrag,
             useGravity = rigidbody.useGravity,
             isKinematic = rigidbody.isKinematic,
             detectCollisions = rigidbody.detectCollisions,
@@ -9850,6 +10224,7 @@ internal sealed class UnityMcpClient : IDisposable
             collisionDetectionMode = CreateEnumSummary(rigidbody.collisionDetectionMode)
         };
     }
+    #pragma warning restore CS0618
 
     private static object CreateRigidbody2DSettingsSnapshot(Rigidbody2D rigidbody)
     {

@@ -293,6 +293,8 @@ public sealed class McpToolCatalog
                     {
                         ["instanceId"] = new JsonObject { ["type"] = "integer" },
                         ["mass"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0 },
+                        ["drag"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
+                        ["angularDrag"] = new JsonObject { ["type"] = "number", ["minimum"] = 0 },
                         ["useGravity"] = new JsonObject { ["type"] = "boolean" },
                         ["isKinematic"] = new JsonObject { ["type"] = "boolean" },
                         ["detectCollisions"] = new JsonObject { ["type"] = "boolean" },
@@ -2382,6 +2384,101 @@ public sealed class McpToolCatalog
                         ["assetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path to the prefab asset (e.g. Assets/Prefabs/Enemy.prefab)." },
                         ["position"] = Vector3Schema("World-space position [x, y, z] for the instantiated prefab."),
                         ["parentInstanceId"] = NullableIntegerSchema("Instance ID of a parent GameObject, or null for scene root.")
+                    }
+                }),
+
+            // ── Batch 5: Physics Queries ──────────────────────────────────────
+            new McpToolDefinition(
+                "physics.raycast",
+                "Performs a physics raycast in the scene and returns hit information.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("origin", "direction"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["origin"] = Vector3Schema("Ray origin [x,y,z]."),
+                        ["direction"] = Vector3Schema("Ray direction [x,y,z]."),
+                        ["maxDistance"] = new JsonObject { ["type"] = "number", ["description"] = "Maximum raycast distance (default Infinity)." },
+                        ["layerMask"] = new JsonObject { ["type"] = "integer", ["description"] = "Optional layer mask for filtering." }
+                    }
+                }),
+            new McpToolDefinition(
+                "physics.overlapSphere",
+                "Finds all colliders within a sphere and returns their GameObject info.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("center", "radius"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["center"] = Vector3Schema("Sphere center [x,y,z]."),
+                        ["radius"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0, ["description"] = "Sphere radius." },
+                        ["layerMask"] = new JsonObject { ["type"] = "integer", ["description"] = "Optional layer mask for filtering." }
+                    }
+                }),
+
+            // ── Batch 5: Time ─────────────────────────────────────────────────
+            new McpToolDefinition(
+                "time.getSettings",
+                "Returns Unity Time settings: timeScale, fixedDeltaTime, maximumDeltaTime, maximumParticleDeltaTime.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "time.setSettings",
+                "Sets Unity Time settings: timeScale, fixedDeltaTime.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["timeScale"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["description"] = "Time scale (0 = paused, 1 = normal)." },
+                        ["fixedDeltaTime"] = new JsonObject { ["type"] = "number", ["exclusiveMinimum"] = 0, ["description"] = "Fixed timestep in seconds." }
+                    }
+                }),
+
+            // ── Batch 5: Joint (base 3D) ──────────────────────────────────────
+            new McpToolDefinition(
+                "joint.getSettings",
+                "Returns base Joint settings for any 3D Joint component (HingeJoint, SpringJoint, FixedJoint, etc.).",
+                InstanceIdOnlySchema("Unity instance id of a Joint component or a GameObject with a single Joint.")),
+            new McpToolDefinition(
+                "joint.setSettings",
+                "Mutates base Joint settings: breakForce, breakTorque, enableCollision.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer" },
+                        ["breakForce"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["description"] = "Force needed to break the joint (Infinity = unbreakable)." },
+                        ["breakTorque"] = new JsonObject { ["type"] = "number", ["minimum"] = 0, ["description"] = "Torque needed to break the joint (Infinity = unbreakable)." },
+                        ["enableCollision"] = new JsonObject { ["type"] = "boolean", ["description"] = "Enable collision between connected bodies." }
+                    }
+                }),
+
+            // ── Batch 5: Renderer ─────────────────────────────────────────────
+            new McpToolDefinition(
+                "renderer.getMaterials",
+                "Returns array of material names and instance IDs for all materials on any Renderer component.",
+                InstanceIdOnlySchema("Unity instance id of a Renderer component or a GameObject with a single Renderer.")),
+            new McpToolDefinition(
+                "renderer.setMaterial",
+                "Assigns a material to a specific slot on a Renderer component by loading from asset path.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("instanceId", "materialIndex", "materialAssetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["instanceId"] = new JsonObject { ["type"] = "integer", ["description"] = "Unity instance id of a Renderer component or a GameObject with a single Renderer." },
+                        ["materialIndex"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["description"] = "Zero-based index of the material slot to assign." },
+                        ["materialAssetPath"] = new JsonObject { ["type"] = "string", ["description"] = "Project-relative path to the material asset (e.g. Assets/Materials/MyMat.mat)." }
                     }
                 })
         };

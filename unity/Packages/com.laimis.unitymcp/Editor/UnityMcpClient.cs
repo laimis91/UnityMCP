@@ -8122,7 +8122,10 @@ internal sealed class UnityMcpClient : IDisposable
         // serialized dictionary with keys "first" (GUID) and "second" (float value).
         float previousValue = 0f;
         bool valueWritten = false;
-        var snapshots = mixer.snapshots;
+        var mixerPath = AssetDatabase.GetAssetPath(mixer);
+        var snapshots = AssetDatabase.LoadAllAssetsAtPath(mixerPath)
+            .OfType<AudioMixerSnapshot>()
+            .ToArray();
 
         foreach (var snapshot in snapshots)
         {

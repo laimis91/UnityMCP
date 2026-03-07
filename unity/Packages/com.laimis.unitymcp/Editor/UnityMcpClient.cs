@@ -644,8 +644,8 @@ internal sealed class UnityMcpClient : IDisposable
                 "renderer.getMaterials" => BuildGetRendererMaterialsResponse(idToken, root),
                 "renderer.setMaterial" => BuildSetRendererMaterialResponse(idToken, root),
 
-                "audio.getSourceSettings" => BuildGetAudioSourceSettingsResponse(idToken, root),
-                "audio.setSourceSettings" => BuildSetAudioSourceSettingsResponse(idToken, root),
+                "audio.getSourceSettings" => BuildAudioSourceGetSettingsResponse(idToken, root),
+                "audio.setSourceSettings" => BuildAudioSourceSetSettingsResponse(idToken, root),
                 "audio.play"             => BuildAudioPlayResponse(idToken, root),
                 "audio.stop"             => BuildAudioStopResponse(idToken, root),
                 "audio.pause"            => BuildAudioPauseResponse(idToken, root),
@@ -7716,7 +7716,7 @@ internal sealed class UnityMcpClient : IDisposable
 
     // ── Batch 6: Audio ──────────────────────────────────────────────────────
 
-    private static string BuildGetAudioSourceSettingsResponse(JToken idToken, JObject root)
+    private static string BuildAudioSourceGetSettingsResponse(JToken idToken, JObject root)
     {
         var paramsObject = RequireParamsObject(root, "audio.getSourceSettings");
         var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
@@ -7758,7 +7758,7 @@ internal sealed class UnityMcpClient : IDisposable
         return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
-    private static string BuildSetAudioSourceSettingsResponse(JToken idToken, JObject root)
+    private static string BuildAudioSourceSetSettingsResponse(JToken idToken, JObject root)
     {
         var paramsObject = RequireParamsObject(root, "audio.setSourceSettings");
         var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");

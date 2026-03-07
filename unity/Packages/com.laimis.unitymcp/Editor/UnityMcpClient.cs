@@ -8122,7 +8122,7 @@ internal sealed class UnityMcpClient : IDisposable
             return ResolveComponentOfTypeTarget<AudioListener>(resolvedObject, "instanceId", "AudioListener");
         }
 
-        var listener = Object.FindObjectOfType<AudioListener>();
+        var listener = UnityEngine.Object.FindObjectOfType<AudioListener>();
         if (listener == null)
             throw new ArgumentException("No AudioListener found in the scene. Add an AudioListener component to a GameObject (typically the Main Camera).");
         return listener;

@@ -8095,11 +8095,38 @@ internal sealed class UnityMcpClient : IDisposable
         if (mixer == null)
             throw new ArgumentException($"No AudioMixer found at path '{mixerAssetPath}'.");
 
-        float previousValue = 0f;
-        mixer.GetFloat(parameterName, out previousValue);
+        // Use SerializedObject to read/write exposed parameters reliably.
+        // AudioMixer.SetFloat() only works when the mixer is live in the audio graph
+        // (i.e. an AudioSource using it is actively playing). SerializedObject works
+        // regardless of play mode or audio graph state.
+        var so = new SerializedObject(mixer);
+        var exposedParams = so.FindProperty("m_ExposedParameters");
 
-        if (!mixer.SetFloat(parameterName, value))
-            throw new ArgumentException($"Parameter '{parameterName}' is not an exposed parameter on mixer '{mixer.name}'. Use audio.getMixerSettings to list exposed parameters.");
+        float previousValue = 0f;
+        bool parameterFound = false;
+
+        for (int i = 0; i < exposedParams.arraySize; i++)
+        {
+            var param = exposedParams.GetArrayElementAtIndex(i);
+            var nameProperty = param.FindPropertyRelative("nameString");
+            if (nameProperty != null && nameProperty.stringValue == parameterName)
+            {
+                var valueProperty = param.FindPropertyRelative("value");
+                if (valueProperty != null)
+                {
+                    so.Update();
+                    previousValue = valueProperty.floatValue;
+                    valueProperty.floatValue = value;
+                    so.ApplyModifiedProperties();
+                    EditorUtility.SetDirty(mixer);
+                    parameterFound = true;
+                }
+                break;
+            }
+        }
+
+        if (!parameterFound)
+            throw new ArgumentException($"Parameter '{parameterName}' not found in mixer exposed parameters on '{mixer.name}'. Use audio.getMixerSettings to list exposed parameters.");
 
         var result = new
         {

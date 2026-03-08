@@ -12450,7 +12450,7 @@ internal sealed class UnityMcpClient : IDisposable
             alphaSource = importer.alphaSource.ToString(),
             npotScale = importer.npotScale.ToString(),
             anisoLevel = importer.anisoLevel,
-            spriteMode = importer.spriteMode,
+            spriteMode = (int)importer.spriteImportMode,
             spritePixelsPerUnit = importer.spritePixelsPerUnit
         };
     }
@@ -12517,7 +12517,7 @@ internal sealed class UnityMcpClient : IDisposable
         if (alphaSource.HasValue) { importer.alphaSource = alphaSource.Value; applied["alphaSource"] = alphaSource.Value.ToString(); }
         if (npotScale.HasValue) { importer.npotScale = npotScale.Value; applied["npotScale"] = npotScale.Value.ToString(); }
         if (anisoLevel.HasValue) { importer.anisoLevel = anisoLevel.Value; applied["anisoLevel"] = anisoLevel.Value; }
-        if (spriteMode.HasValue) { importer.spriteMode = spriteMode.Value; applied["spriteMode"] = spriteMode.Value; }
+        if (spriteMode.HasValue) { importer.spriteImportMode = (SpriteImportMode)spriteMode.Value; applied["spriteMode"] = spriteMode.Value; }
         if (spritePixelsPerUnit.HasValue) { importer.spritePixelsPerUnit = spritePixelsPerUnit.Value; applied["spritePixelsPerUnit"] = spritePixelsPerUnit.Value; }
 
         importer.SaveAndReimport();

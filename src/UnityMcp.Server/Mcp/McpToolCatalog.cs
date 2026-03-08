@@ -2595,7 +2595,57 @@ public sealed class McpToolCatalog
                         ["pause"] = new JsonObject { ["type"] = "boolean", ["description"] = "Whether to pause the AudioListener (pauses all audio). Sets static AudioListener.pause." },
                         ["velocityUpdateMode"] = EnumLikeSchema("AudioVelocityUpdateMode: Auto/0, Fixed/1, Dynamic/2.")
                     }
-                })
+                }),
+            // ── Batch 7: Test Runner ──────────────────────────────────────────────
+            new McpToolDefinition(
+                "testRunner.listTests",
+                "List available Unity tests by mode. Returns test tree with full names, class names, method names, and assemblies.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("mode"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["mode"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Test mode: 'editMode' or 'playMode'.",
+                            ["enum"] = new JsonArray("editMode", "playMode")
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "testRunner.run",
+                "Start a Unity test run. Returns immediately with started status. Use testRunner.getResults to poll for completion.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("mode"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["mode"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Test mode: 'editMode' or 'playMode'.",
+                            ["enum"] = new JsonArray("editMode", "playMode")
+                        },
+                        ["testFilter"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional filter by test name pattern. Matches against full test names."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "testRunner.getResults",
+                "Get results of the last completed test run. Returns pass/fail/skip counts and per-test details including duration and failure messages.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "testRunner.cancel",
+                "Cancel an in-progress test run.",
+                EmptyObjectSchema())
         };
 
         Tools = tools;

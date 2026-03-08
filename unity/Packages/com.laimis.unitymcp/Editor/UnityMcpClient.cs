@@ -8459,7 +8459,7 @@ internal sealed class UnityMcpClient : IDisposable
                 fullName = adaptor.FullName,
                 name = adaptor.Name,
                 typeName = adaptor.TypeInfo?.FullName,
-                methodName = adaptor.MethodName,
+                methodName = adaptor.Name,
                 testCaseCount = adaptor.TestCaseCount,
                 runState = adaptor.RunState.ToString()
             });

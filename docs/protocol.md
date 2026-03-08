@@ -1163,6 +1163,180 @@
   - Returns:
     - Updated materials list.
 
+### Batch 7 — Test Runner
+
+> **Requires** the `com.unity.test-framework` package in your Unity project.
+
+- `testRunner.listTests`
+  - Lists all discovered tests for the specified mode.
+  - Params:
+    - `mode` (required, string: `"editMode"` or `"playMode"`)
+  - Returns:
+    - `mode`
+    - `count`
+    - `tests[]` (`{fullName, name, className, assembly}`)
+- `testRunner.run`
+  - Starts a test run **asynchronously** and returns immediately. Poll `testRunner.getResults` to retrieve results.
+  - Params:
+    - `mode` (required, string: `"editMode"` or `"playMode"`)
+    - `testFilter` (optional, string; passed to Unity's test runner filter)
+  - Returns immediately:
+    - `started` (boolean, always `true`)
+    - `mode`
+    - `message`
+- `testRunner.getResults`
+  - Returns the results of the last completed test run.
+  - Params: none
+  - Returns:
+    - `status` (string: e.g. `"Completed"`, `"Running"`, `"NotStarted"`)
+    - `summary` (`{total, passed, failed, skipped}`)
+    - `tests[]` (`{name, fullName, result, duration, message?, stackTrace?}`)
+- `testRunner.cancel`
+  - Cancels an in-progress test run.
+  - Params: none
+  - Returns:
+    - `cancelled` (boolean)
+    - `message`
+
+## `testRunner.listTests` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 90,
+  "method": "testRunner.listTests",
+  "params": {
+    "mode": "editMode"
+  }
+}
+```
+
+Success response (example):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 90,
+  "result": {
+    "mode": "editMode",
+    "count": 3,
+    "tests": [
+      {
+        "fullName": "MyGame.Tests.PlayerControllerTests.Move_ForwardInput_MovesPlayer",
+        "name": "Move_ForwardInput_MovesPlayer",
+        "className": "PlayerControllerTests",
+        "assembly": "MyGame.Tests"
+      },
+      {
+        "fullName": "MyGame.Tests.PlayerControllerTests.Jump_WhenGrounded_AppliesForce",
+        "name": "Jump_WhenGrounded_AppliesForce",
+        "className": "PlayerControllerTests",
+        "assembly": "MyGame.Tests"
+      },
+      {
+        "fullName": "MyGame.Tests.InventoryTests.AddItem_WhenBelowCapacity_Succeeds",
+        "name": "AddItem_WhenBelowCapacity_Succeeds",
+        "className": "InventoryTests",
+        "assembly": "MyGame.Tests"
+      }
+    ]
+  }
+}
+```
+
+## `testRunner.run` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 91,
+  "method": "testRunner.run",
+  "params": {
+    "mode": "editMode",
+    "testFilter": "MyGame.Tests.PlayerControllerTests"
+  }
+}
+```
+
+Success response (returns immediately):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 91,
+  "result": {
+    "started": true,
+    "mode": "editMode",
+    "message": "Test run started for editMode"
+  }
+}
+```
+
+## `testRunner.getResults` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 92,
+  "method": "testRunner.getResults",
+  "params": {}
+}
+```
+
+Success response (example):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 92,
+  "result": {
+    "status": "Completed",
+    "summary": {
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0
+    },
+    "tests": [
+      {
+        "name": "Move_ForwardInput_MovesPlayer",
+        "fullName": "MyGame.Tests.PlayerControllerTests.Move_ForwardInput_MovesPlayer",
+        "result": "Passed",
+        "duration": 0.012
+      },
+      {
+        "name": "Jump_WhenGrounded_AppliesForce",
+        "fullName": "MyGame.Tests.PlayerControllerTests.Jump_WhenGrounded_AppliesForce",
+        "result": "Failed",
+        "duration": 0.008,
+        "message": "Expected: True\n  But was: False",
+        "stackTrace": "at MyGame.Tests.PlayerControllerTests.Jump_WhenGrounded_AppliesForce() ..."
+      }
+    ]
+  }
+}
+```
+
+## `testRunner.cancel` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 93,
+  "method": "testRunner.cancel",
+  "params": {}
+}
+```
+
+Success response (example):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 93,
+  "result": {
+    "cancelled": true,
+    "message": "Test run cancelled"
+  }
+}
+```
+
 ## Request Example
 ```json
 {

@@ -259,6 +259,11 @@ Selection tool note:
   - `boxCollider.*`, `sphereCollider.*`, `capsuleCollider.*`, `meshCollider.*`
 - `meshCollider.setSettings` intentionally uses a safe subset in the MVP (no `sharedMesh` assignment yet).
 - `assets.ping` / `assets.reveal` navigate the Project window to an asset path (`assets.reveal` also focuses Project window and selects the asset).
+- **Test Runner tools** require the `com.unity.test-framework` package installed in the Unity project:
+  - `testRunner.listTests` — lists all discovered tests for the given mode. Params: `mode` (required: `"editMode"` or `"playMode"`). Returns `{mode, count, tests: [{fullName, name, className, assembly}]}`.
+  - `testRunner.run` — **async**: starts a test run and returns immediately. Params: `mode` (required), `testFilter` (optional string). Returns `{started: true, mode, message}`. Poll `testRunner.getResults` until the run finishes.
+  - `testRunner.getResults` — retrieves results of the last completed test run. No params. Returns `{status, summary: {total, passed, failed, skipped}, tests: [{name, fullName, result, duration, message?, stackTrace?}]}`.
+  - `testRunner.cancel` — cancels an in-progress run. No params. Returns `{cancelled: bool, message}`.
 
 Example MCP `initialize` request:
 ```json

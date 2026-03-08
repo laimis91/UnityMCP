@@ -7624,7 +7624,7 @@ internal sealed class UnityMcpClient : IDisposable
         {
             var mat = sharedMaterials[i];
             materials[i] = mat != null
-                ? new { name = mat.name, instanceId = (int?)mat.GetInstanceID() }
+                ? new { name = (string?)mat.name, instanceId = (int?)mat.GetInstanceID() }
                 : new { name = (string?)null, instanceId = (int?)null };
         }
 
@@ -7675,7 +7675,7 @@ internal sealed class UnityMcpClient : IDisposable
         {
             var mat = updatedMaterials[i];
             materialsResult[i] = mat != null
-                ? new { name = mat.name, instanceId = (int?)mat.GetInstanceID() }
+                ? new { name = (string?)mat.name, instanceId = (int?)mat.GetInstanceID() }
                 : new { name = (string?)null, instanceId = (int?)null };
         }
 
@@ -7731,7 +7731,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         var clipPath = source.clip != null ? AssetDatabase.GetAssetPath(source.clip) : "";
         var clipName = source.clip != null ? source.clip.name : "";
-        string mixerGroupPath = null;
+        string? mixerGroupPath = null;
         if (source.outputAudioMixerGroup != null)
         {
             var mixer = source.outputAudioMixerGroup.audioMixer;
@@ -7852,7 +7852,7 @@ internal sealed class UnityMcpClient : IDisposable
                 if (parts.Length != 2)
                     throw new ArgumentException($"No AudioMixerGroup found at path '{mixerGroupPath}'. Format must be 'MixerName/GroupName'.");
                 var mixerGuids = AssetDatabase.FindAssets($"t:AudioMixer {parts[0]}");
-                AudioMixerGroup foundGroup = null;
+                AudioMixerGroup? foundGroup = null;
                 foreach (var guid in mixerGuids)
                 {
                     var path = AssetDatabase.GUIDToAssetPath(guid);
@@ -7877,7 +7877,7 @@ internal sealed class UnityMcpClient : IDisposable
         EditorUtility.SetDirty(source);
 
         string resultClipPath = source.clip != null ? AssetDatabase.GetAssetPath(source.clip) : "";
-        string resultMixerGroupPath = null;
+        string? resultMixerGroupPath = null;
         if (source.outputAudioMixerGroup != null)
         {
             var mixer = source.outputAudioMixerGroup.audioMixer;
@@ -8107,7 +8107,7 @@ internal sealed class UnityMcpClient : IDisposable
         var so = new SerializedObject(mixer);
         var exposedParams = so.FindProperty("m_ExposedParameters");
 
-        string targetGuid = null;
+        string? targetGuid = null;
         for (int i = 0; i < exposedParams.arraySize; i++)
         {
             var param = exposedParams.GetArrayElementAtIndex(i);
@@ -8187,7 +8187,7 @@ internal sealed class UnityMcpClient : IDisposable
             return ResolveComponentOfTypeTarget<AudioListener>(resolvedObject, "instanceId", "AudioListener");
         }
 
-        var listener = UnityEngine.Object.FindObjectOfType<AudioListener>();
+        var listener = UnityEngine.Object.FindFirstObjectByType<AudioListener>();
         if (listener == null)
             throw new ArgumentException("No AudioListener found in the scene. Add an AudioListener component to a GameObject (typically the Main Camera).");
         return listener;

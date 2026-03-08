@@ -142,6 +142,17 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.import");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.ping");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "assets.reveal");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.getSourceSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.setSourceSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.play");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.stop");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.pause");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.unpause");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.getIsPlaying");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.getMixerSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.setMixerParameter");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.getListenerSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.setListenerSettings");
     }
 
     [Fact]

@@ -1824,6 +1824,125 @@ public sealed class McpToolCatalog
                     }
                 }),
 
+            // ── AnimationClip ─────────────────────────────────────────────
+            new McpToolDefinition(
+                "animationClip.getProperties",
+                "Returns properties of an AnimationClip asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path of the AnimationClip (e.g. Assets/Animations/Walk.anim)."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "animationClip.setProperties",
+                "Modifies writable properties of an AnimationClip asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path of the AnimationClip."
+                        },
+                        ["frameRate"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["description"] = "Clip frame rate (frames per second).",
+                            ["exclusiveMinimum"] = 0
+                        },
+                        ["wrapMode"] = EnumLikeSchema("WrapMode enum name or integer value. Valid names: Default, Once, Loop, PingPong, ClampForever."),
+                        ["legacy"] = new JsonObject { ["type"] = "boolean", ["description"] = "Whether the clip uses the legacy animation system." }
+                    }
+                }),
+            new McpToolDefinition(
+                "animationClip.getCurveBindings",
+                "Lists all animated property curve bindings in an AnimationClip asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path of the AnimationClip."
+                        },
+                        ["maxResults"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Optional cap for returned curve bindings (1-500).",
+                            ["minimum"] = 1,
+                            ["maximum"] = 500
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "animationClip.getEvents",
+                "Returns the list of animation events on an AnimationClip asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path of the AnimationClip."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "animationClip.setEvents",
+                "Replaces the animation events on an AnimationClip asset.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["required"] = new JsonArray("assetPath", "events"),
+                    ["properties"] = new JsonObject
+                    {
+                        ["assetPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project-relative asset path of the AnimationClip."
+                        },
+                        ["events"] = new JsonObject
+                        {
+                            ["type"] = "array",
+                            ["description"] = "Array of animation events to set on the clip (replaces existing events).",
+                            ["items"] = new JsonObject
+                            {
+                                ["type"] = "object",
+                                ["properties"] = new JsonObject
+                                {
+                                    ["time"] = new JsonObject { ["type"] = "number", ["description"] = "Time in seconds at which the event fires." },
+                                    ["functionName"] = new JsonObject { ["type"] = "string", ["description"] = "Name of the function to call." },
+                                    ["stringParameter"] = new JsonObject { ["type"] = "string", ["description"] = "Optional string parameter." },
+                                    ["floatParameter"] = new JsonObject { ["type"] = "number", ["description"] = "Optional float parameter." },
+                                    ["intParameter"] = new JsonObject { ["type"] = "integer", ["description"] = "Optional int parameter." }
+                                }
+                            }
+                        }
+                    }
+                }),
+
             // ── MeshRenderer ──────────────────────────────────────────────
             new McpToolDefinition(
                 "meshRenderer.getSettings",

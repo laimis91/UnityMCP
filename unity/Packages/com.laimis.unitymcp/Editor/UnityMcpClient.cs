@@ -671,6 +671,9 @@ internal sealed class UnityMcpClient : IDisposable
                 "material.setShader" => BuildSetMaterialShaderResponse(idToken, root),
                 "material.getRenderQueue" => BuildGetMaterialRenderQueueResponse(idToken, root),
                 "material.setRenderQueue" => BuildSetMaterialRenderQueueResponse(idToken, root),
+                // Batch 9: Texture Import Settings
+                "textureImporter.getSettings" => BuildGetTextureImporterSettingsResponse(idToken, root),
+                "textureImporter.setSettings" => BuildSetTextureImporterSettingsResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -12316,6 +12319,213 @@ internal sealed class UnityMcpClient : IDisposable
             assetPath,
             renderQueue = material.renderQueue,
             updated = true
+        });
+    }
+
+    private static TextureImporter LoadTextureImporterFromAssetPath(string assetPath)
+    {
+        var importer = AssetImporter.GetAtPath(assetPath);
+        if (importer == null)
+            throw new ArgumentException($"No asset found at '{assetPath}'.");
+        if (importer is not TextureImporter textureImporter)
+            throw new ArgumentException($"Asset at '{assetPath}' is not a texture (importer type: {importer.GetType().Name}).");
+        return textureImporter;
+    }
+
+    private static string TextureImporterTypeToString(TextureImporterType type)
+    {
+        return type switch
+        {
+            TextureImporterType.Default => "Default",
+            TextureImporterType.NormalMap => "NormalMap",
+            TextureImporterType.GUI => "Editor GUI and Legacy GUI",
+            TextureImporterType.Sprite => "Sprite",
+            TextureImporterType.Cursor => "Cursor",
+            TextureImporterType.Cookie => "Cookie",
+            TextureImporterType.Lightmap => "Lightmap",
+            TextureImporterType.SingleChannel => "Single Channel",
+            _ => type.ToString()
+        };
+    }
+
+    private static TextureImporterType? ParseOptionalTextureImporterType(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "Default" => TextureImporterType.Default,
+            "NormalMap" => TextureImporterType.NormalMap,
+            "Editor GUI and Legacy GUI" => TextureImporterType.GUI,
+            "Sprite" => TextureImporterType.Sprite,
+            "Cursor" => TextureImporterType.Cursor,
+            "Cookie" => TextureImporterType.Cookie,
+            "Lightmap" => TextureImporterType.Lightmap,
+            "Single Channel" => TextureImporterType.SingleChannel,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: Default, NormalMap, Editor GUI and Legacy GUI, Sprite, Cursor, Cookie, Lightmap, Single Channel.")
+        };
+    }
+
+    private static TextureImporterCompression? ParseOptionalTextureImporterCompression(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "Uncompressed" => TextureImporterCompression.Uncompressed,
+            "Compressed" => TextureImporterCompression.Compressed,
+            "CompressedHQ" => TextureImporterCompression.CompressedHQ,
+            "CompressedLQ" => TextureImporterCompression.CompressedLQ,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: Uncompressed, Compressed, CompressedHQ, CompressedLQ.")
+        };
+    }
+
+    private static FilterMode? ParseOptionalFilterModeParameter(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "Point" => FilterMode.Point,
+            "Bilinear" => FilterMode.Bilinear,
+            "Trilinear" => FilterMode.Trilinear,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: Point, Bilinear, Trilinear.")
+        };
+    }
+
+    private static TextureWrapMode? ParseOptionalTextureWrapModeParameter(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "Repeat" => TextureWrapMode.Repeat,
+            "Clamp" => TextureWrapMode.Clamp,
+            "Mirror" => TextureWrapMode.Mirror,
+            "MirrorOnce" => TextureWrapMode.MirrorOnce,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: Repeat, Clamp, Mirror, MirrorOnce.")
+        };
+    }
+
+    private static TextureImporterAlphaSource? ParseOptionalTextureImporterAlphaSource(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "None" => TextureImporterAlphaSource.None,
+            "FromInput" => TextureImporterAlphaSource.FromInput,
+            "FromGrayScale" => TextureImporterAlphaSource.FromGrayScale,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: None, FromInput, FromGrayScale.")
+        };
+    }
+
+    private static TextureImporterNPOTScale? ParseOptionalTextureImporterNPOTScale(JObject paramsObject, string paramName)
+    {
+        var value = ParseOptionalStringParameter(paramsObject, paramName);
+        if (value == null) return null;
+        return value switch
+        {
+            "None" => TextureImporterNPOTScale.None,
+            "ToNearest" => TextureImporterNPOTScale.ToNearest,
+            "ToLarger" => TextureImporterNPOTScale.ToLarger,
+            "ToSmaller" => TextureImporterNPOTScale.ToSmaller,
+            _ => throw new ArgumentException($"Invalid value for {paramName}: '{value}'. Valid values: None, ToNearest, ToLarger, ToSmaller.")
+        };
+    }
+
+    private static object BuildTextureImporterSettingsObject(string assetPath, TextureImporter importer)
+    {
+        return new
+        {
+            assetPath,
+            textureType = TextureImporterTypeToString(importer.textureType),
+            maxTextureSize = importer.maxTextureSize,
+            textureCompression = importer.textureCompression.ToString(),
+            filterMode = importer.filterMode.ToString(),
+            wrapMode = importer.wrapMode.ToString(),
+            mipmapEnabled = importer.mipmapEnabled,
+            isReadable = importer.isReadable,
+            sRGBTexture = importer.sRGBTexture,
+            alphaSource = importer.alphaSource.ToString(),
+            npotScale = importer.npotScale.ToString(),
+            anisoLevel = importer.anisoLevel,
+            spriteMode = (int)importer.spriteImportMode,
+            spritePixelsPerUnit = importer.spritePixelsPerUnit
+        };
+    }
+
+    private static string BuildGetTextureImporterSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "textureImporter.getSettings");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var importer = LoadTextureImporterFromAssetPath(assetPath);
+
+        return UnityMcpProtocol.CreateResult(idToken, BuildTextureImporterSettingsObject(assetPath, importer));
+    }
+
+    private static string BuildSetTextureImporterSettingsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "textureImporter.setSettings");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+
+        var textureType = ParseOptionalTextureImporterType(paramsObject, "textureType");
+        var maxTextureSize = ParseOptionalIntegerParameter(paramsObject, "maxTextureSize");
+        var textureCompression = ParseOptionalTextureImporterCompression(paramsObject, "textureCompression");
+        var filterMode = ParseOptionalFilterModeParameter(paramsObject, "filterMode");
+        var wrapMode = ParseOptionalTextureWrapModeParameter(paramsObject, "wrapMode");
+        var mipmapEnabled = ParseOptionalBooleanValueParameter(paramsObject, "mipmapEnabled");
+        var isReadable = ParseOptionalBooleanValueParameter(paramsObject, "isReadable");
+        var sRGBTexture = ParseOptionalBooleanValueParameter(paramsObject, "sRGBTexture");
+        var alphaSource = ParseOptionalTextureImporterAlphaSource(paramsObject, "alphaSource");
+        var npotScale = ParseOptionalTextureImporterNPOTScale(paramsObject, "npotScale");
+        var anisoLevel = ParseOptionalIntegerParameter(paramsObject, "anisoLevel");
+        var spriteMode = ParseOptionalIntegerParameter(paramsObject, "spriteMode");
+        var spritePixelsPerUnit = ParseOptionalFloatParameter(paramsObject, "spritePixelsPerUnit");
+
+        var hasAnyParam = textureType.HasValue || maxTextureSize.HasValue || textureCompression.HasValue ||
+                          filterMode.HasValue || wrapMode.HasValue || mipmapEnabled.HasValue ||
+                          isReadable.HasValue || sRGBTexture.HasValue || alphaSource.HasValue ||
+                          npotScale.HasValue || anisoLevel.HasValue || spriteMode.HasValue ||
+                          spritePixelsPerUnit.HasValue;
+
+        if (!hasAnyParam)
+            throw new ArgumentException("At least one setting parameter must be provided.");
+
+        if (maxTextureSize.HasValue)
+        {
+            var size = maxTextureSize.Value;
+            if (size <= 0 || (size & (size - 1)) != 0)
+                throw new ArgumentException($"maxTextureSize must be a power of 2 (e.g. 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384). Got: {size}.");
+        }
+
+        if (anisoLevel.HasValue && (anisoLevel.Value < 0 || anisoLevel.Value > 16))
+            throw new ArgumentException($"anisoLevel must be between 0 and 16. Got: {anisoLevel.Value}.");
+
+        var importer = LoadTextureImporterFromAssetPath(assetPath);
+
+        var applied = new System.Collections.Generic.Dictionary<string, object>();
+
+        if (textureType.HasValue) { importer.textureType = textureType.Value; applied["textureType"] = TextureImporterTypeToString(textureType.Value); }
+        if (maxTextureSize.HasValue) { importer.maxTextureSize = maxTextureSize.Value; applied["maxTextureSize"] = maxTextureSize.Value; }
+        if (textureCompression.HasValue) { importer.textureCompression = textureCompression.Value; applied["textureCompression"] = textureCompression.Value.ToString(); }
+        if (filterMode.HasValue) { importer.filterMode = filterMode.Value; applied["filterMode"] = filterMode.Value.ToString(); }
+        if (wrapMode.HasValue) { importer.wrapMode = wrapMode.Value; applied["wrapMode"] = wrapMode.Value.ToString(); }
+        if (mipmapEnabled.HasValue) { importer.mipmapEnabled = mipmapEnabled.Value; applied["mipmapEnabled"] = mipmapEnabled.Value; }
+        if (isReadable.HasValue) { importer.isReadable = isReadable.Value; applied["isReadable"] = isReadable.Value; }
+        if (sRGBTexture.HasValue) { importer.sRGBTexture = sRGBTexture.Value; applied["sRGBTexture"] = sRGBTexture.Value; }
+        if (alphaSource.HasValue) { importer.alphaSource = alphaSource.Value; applied["alphaSource"] = alphaSource.Value.ToString(); }
+        if (npotScale.HasValue) { importer.npotScale = npotScale.Value; applied["npotScale"] = npotScale.Value.ToString(); }
+        if (anisoLevel.HasValue) { importer.anisoLevel = anisoLevel.Value; applied["anisoLevel"] = anisoLevel.Value; }
+        if (spriteMode.HasValue) { importer.spriteImportMode = (SpriteImportMode)spriteMode.Value; applied["spriteMode"] = spriteMode.Value; }
+        if (spritePixelsPerUnit.HasValue) { importer.spritePixelsPerUnit = spritePixelsPerUnit.Value; applied["spritePixelsPerUnit"] = spritePixelsPerUnit.Value; }
+
+        importer.SaveAndReimport();
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            settings = BuildTextureImporterSettingsObject(assetPath, importer),
+            applied
         });
     }
 }

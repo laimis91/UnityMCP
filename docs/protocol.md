@@ -1288,6 +1288,341 @@
     - `component`
     - `applied`
 
+### Batch 8 — Material / Shader Properties
+
+All tools operate on material **asset files**. `assetPath` is the project-relative path to the `.mat` file (e.g. `Assets/Materials/MyMat.mat`).
+
+- `material.getProperties`
+  - Returns all shader properties for the material.
+  - Params:
+    - `assetPath` (required, string)
+  - Returns:
+    - `assetPath`
+    - `shaderName`
+    - `propertyCount`
+    - `properties[]` (`{name, type, value}`)
+      - `type` values: `"Color"`, `"Vector"`, `"Float"`, `"Range"`, `"Texture"`, `"Int"`
+      - `value` shapes: Color → `{r,g,b,a}`, Vector → `{x,y,z,w}`, Float/Range/Int → number, Texture → asset path string or `null`
+- `material.getProperty`
+  - Returns a single named shader property.
+  - Params:
+    - `assetPath` (required, string)
+    - `propertyName` (required, string)
+  - Returns:
+    - `assetPath`
+    - `name`
+    - `type`
+    - `value`
+  - Throws if the property is not found on the shader.
+- `material.setProperty`
+  - Sets a single shader property and saves the material asset.
+  - Params:
+    - `assetPath` (required, string)
+    - `propertyName` (required, string)
+    - `propertyType` (required, string: `"color"` | `"float"` | `"int"` | `"vector"` | `"texture"`)
+    - `value` (required; shape depends on `propertyType`)
+      - `"color"` → `{r, g, b, a}`
+      - `"vector"` → `{x, y, z, w}`
+      - `"float"` / `"int"` → number
+      - `"texture"` → asset path string or `null`
+  - Returns:
+    - `assetPath`
+    - `propertyName`
+    - `propertyType`
+    - `updated` (boolean, always `true`)
+- `material.getKeywords`
+  - Returns the list of active shader keywords on the material.
+  - Params:
+    - `assetPath` (required, string)
+  - Returns:
+    - `assetPath`
+    - `keywords` (string array)
+- `material.setKeyword`
+  - Enables or disables a single shader keyword on the material.
+  - Params:
+    - `assetPath` (required, string)
+    - `keyword` (required, string)
+    - `enabled` (required, boolean)
+  - Returns:
+    - `assetPath`
+    - `keyword`
+    - `enabled`
+    - `keywords` (string array — full list after change)
+  - **Note:** URP Lit materials may reset keywords because the custom shader GUI manages them.
+- `material.getShader`
+  - Returns the name of the shader currently assigned to the material.
+  - Params:
+    - `assetPath` (required, string)
+  - Returns:
+    - `assetPath`
+    - `shaderName`
+- `material.setShader`
+  - Assigns a different shader to the material.
+  - Params:
+    - `assetPath` (required, string)
+    - `shaderName` (required, string)
+  - Returns:
+    - `assetPath`
+    - `shaderName`
+    - `updated` (boolean, always `true`)
+  - Throws if the named shader is not found in the project.
+- `material.getRenderQueue`
+  - Returns the render queue value of the material.
+  - Params:
+    - `assetPath` (required, string)
+  - Returns:
+    - `assetPath`
+    - `renderQueue` (integer)
+- `material.setRenderQueue`
+  - Sets the render queue value of the material.
+  - Params:
+    - `assetPath` (required, string)
+    - `renderQueue` (required, integer)
+  - Returns:
+    - `assetPath`
+    - `renderQueue`
+    - `updated` (boolean, always `true`)
+  - **Note:** URP Lit materials may override the render queue based on their surface type setting.
+
+## `material.getProperties` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 100,
+  "method": "material.getProperties",
+  "params": { "assetPath": "Assets/Materials/MyMat.mat" }
+}
+```
+
+Success response (example):
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 100,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "shaderName": "Universal Render Pipeline/Lit",
+    "propertyCount": 3,
+    "properties": [
+      { "name": "_BaseColor", "type": "Color", "value": { "r": 1.0, "g": 1.0, "b": 1.0, "a": 1.0 } },
+      { "name": "_Smoothness", "type": "Float", "value": 0.5 },
+      { "name": "_BaseMap", "type": "Texture", "value": "Assets/Textures/Albedo.png" }
+    ]
+  }
+}
+```
+
+## `material.getProperty` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 101,
+  "method": "material.getProperty",
+  "params": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "propertyName": "_BaseColor"
+  }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 101,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "name": "_BaseColor",
+    "type": "Color",
+    "value": { "r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0 }
+  }
+}
+```
+
+## `material.setProperty` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 102,
+  "method": "material.setProperty",
+  "params": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "propertyName": "_BaseColor",
+    "propertyType": "color",
+    "value": { "r": 1.0, "g": 0.0, "b": 0.0, "a": 1.0 }
+  }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 102,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "propertyName": "_BaseColor",
+    "propertyType": "color",
+    "updated": true
+  }
+}
+```
+
+## `material.getKeywords` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 103,
+  "method": "material.getKeywords",
+  "params": { "assetPath": "Assets/Materials/MyMat.mat" }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 103,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "keywords": ["_NORMALMAP", "_EMISSION"]
+  }
+}
+```
+
+## `material.setKeyword` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 104,
+  "method": "material.setKeyword",
+  "params": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "keyword": "_EMISSION",
+    "enabled": true
+  }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 104,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "keyword": "_EMISSION",
+    "enabled": true,
+    "keywords": ["_NORMALMAP", "_EMISSION"]
+  }
+}
+```
+
+## `material.getShader` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 105,
+  "method": "material.getShader",
+  "params": { "assetPath": "Assets/Materials/MyMat.mat" }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 105,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "shaderName": "Universal Render Pipeline/Lit"
+  }
+}
+```
+
+## `material.setShader` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 106,
+  "method": "material.setShader",
+  "params": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "shaderName": "Universal Render Pipeline/Unlit"
+  }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 106,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "shaderName": "Universal Render Pipeline/Unlit",
+    "updated": true
+  }
+}
+```
+
+## `material.getRenderQueue` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 107,
+  "method": "material.getRenderQueue",
+  "params": { "assetPath": "Assets/Materials/MyMat.mat" }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 107,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "renderQueue": 2000
+  }
+}
+```
+
+## `material.setRenderQueue` Example
+Request:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 108,
+  "method": "material.setRenderQueue",
+  "params": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "renderQueue": 3000
+  }
+}
+```
+
+Success response:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 108,
+  "result": {
+    "assetPath": "Assets/Materials/MyMat.mat",
+    "renderQueue": 3000,
+    "updated": true
+  }
+}
+```
+
 ### Batch 7 — Test Runner
 
 > **Requires** the `com.unity.test-framework` package in your Unity project.

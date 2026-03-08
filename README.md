@@ -8,7 +8,7 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
 - Unity Editor package (UPM local package workflow)
 - JSON-RPC 2.0 request/response forwarding
 - Main-thread Unity command dispatch (via `EditorApplication.update`)
-- **183 implemented tools** across 7 batches
+- **192 implemented tools** across 8 batches
 - Implemented methods:
   - MCP: `initialize`, `notifications/initialized`, `ping`
   - MCP: `tools/list`, `tools/call`
@@ -42,6 +42,7 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - **Time:** `time.getSettings`, `time.setSettings`
   - **Build:** `build.getSettings`, `build.setSettings`, `build.build`
   - **Test Runner (Batch 7):** `testRunner.listTests`, `testRunner.run`, `testRunner.getResults`, `testRunner.cancel`
+  - **Material (Batch 8):** `material.getProperties`, `material.getProperty`, `material.setProperty`, `material.getKeywords`, `material.setKeyword`, `material.getShader`, `material.setShader`, `material.getRenderQueue`, `material.setRenderQueue`
 
 ## Repository Layout
 - `src/UnityMcp.Server` - MCP relay server

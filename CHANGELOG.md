@@ -36,13 +36,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `audio.play` / `audio.stop` / `audio.pause` / `audio.unpause` / `audio.getIsPlaying`
 - `audio.getMixerSettings` / `audio.setMixerParameter`
 - `audio.getListenerSettings` / `audio.setListenerSettings`
-- `audioSource.getSettings` / `audioSource.setSettings` (component wrappers)
+
+> **Note:** `audioSource.getSettings` / `audioSource.setSettings` are component wrappers added in Batch 2, not Batch 6.
 
 ---
 
 ## [Batch 5] — 2026-03-07
 
-### Added — Physics, Time, Joints, Renderer (28 tools)
+### Added — Physics, Time, Joints, Renderer (18 tools)
 
 - **Physics 3D — Queries:** `physics.raycast`, `physics.overlapSphere`
 - **Time:** `time.getSettings`, `time.setSettings`

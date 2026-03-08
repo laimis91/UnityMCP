@@ -263,6 +263,9 @@
     - `convex`
     - `cookingOptions`
   - `sharedMesh` assignment is intentionally out of scope for this slice.
+
+### Batch 3 — 2D Physics
+
 - `rigidbody2D.getSettings` / `rigidbody2D.setSettings`
   - Typed convenience wrappers for `Rigidbody2D`.
   - `setSettings` supports common 2D body fields (for example `bodyType`, `simulated`, `mass`, `gravityScale`, `constraints`, `interpolation`, `collisionDetectionMode`, `sleepMode`).
@@ -316,6 +319,9 @@
 - `targetJoint2D.getSettings` / `targetJoint2D.setSettings`
   - Typed convenience wrappers for `TargetJoint2D`.
   - `setSettings` supports `anchor`, `autoConfigureTarget`, `target`, `maxForce`, `dampingRatio`, and `frequency`.
+
+### Batch 5 — 3D Joints
+
 - `hingeJoint.getSettings` / `hingeJoint.setSettings`
   - Typed convenience wrappers for `HingeJoint`.
   - `setSettings` supports shared `Joint` fields plus `connectedBodyInstanceId`, `connectedAnchorMode`, spring, motor, and limit controls.
@@ -1093,6 +1099,9 @@
     - `assetPath`
     - `parent`
     - `applied`
+
+### Batch 5 — Physics Queries, Time, Renderer
+
 - `physics.raycast`
   - Performs a physics raycast and returns hit information.
   - Params:
@@ -1162,6 +1171,122 @@
     - `materialAssetPath` (required, string; project-relative path)
   - Returns:
     - Updated materials list.
+
+### Batch 6 — Audio
+
+> **Note:** `audio.play`, `audio.stop`, `audio.pause`, and `audio.unpause` require the Editor to be in **Play mode** — these operations are no-ops in Edit mode.
+
+- `audio.getSourceSettings`
+  - Returns runtime AudioSource settings for an `AudioSource` component target.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`:
+      - `clipAssetPath` (string; empty if no clip assigned)
+      - `clipName` (string)
+      - `volume` (float, 0..1)
+      - `pitch` (float)
+      - `loop` (boolean)
+      - `mute` (boolean)
+      - `playOnAwake` (boolean)
+      - `spatialBlend` (float, 0=2D..1=3D)
+      - `minDistance` (float)
+      - `maxDistance` (float)
+      - `rolloffMode` (string: `Logarithmic`, `Linear`, `Custom`)
+      - `mixerGroupPath` (string or `null`; format `"MixerName/GroupName"`)
+      - `isPlaying` (boolean)
+- `audio.setSourceSettings`
+  - Mutates AudioSource settings.
+  - Params:
+    - `instanceId` (required, integer)
+    - optional: `volume`, `pitch`, `loop`, `mute`, `playOnAwake`, `spatialBlend`, `minDistance`, `maxDistance`, `rolloffMode`
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
+- `audio.play`
+  - Plays an AudioSource. Requires Play mode.
+  - Params:
+    - `instanceId` (required, integer)
+    - `delay` (optional, float; delay in seconds before playback starts)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+- `audio.stop`
+  - Stops an AudioSource. Requires Play mode.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+- `audio.pause`
+  - Pauses an AudioSource. Requires Play mode.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+- `audio.unpause`
+  - Resumes a paused AudioSource. Requires Play mode.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying`
+- `audio.getIsPlaying`
+  - Returns whether an AudioSource is currently playing.
+  - Params:
+    - `instanceId` (required, integer)
+  - Returns:
+    - `target`
+    - `component`
+    - `isPlaying` (boolean)
+- `audio.getMixerSettings`
+  - Returns exposed parameters and snapshot list for an AudioMixer asset.
+  - Params:
+    - `mixerAssetPath` (required, string; project-relative path ending in `.mixer`)
+  - Returns:
+    - `mixerName`
+    - `exposedParameters[]` (`{name, value}`)
+    - `snapshots[]` (`{name}`)
+- `audio.setMixerParameter`
+  - Sets an exposed parameter value on an AudioMixer via SerializedObject (works in Edit mode).
+  - Params:
+    - `mixerAssetPath` (required, string)
+    - `parameterName` (required, string; must match an exposed parameter name)
+    - `value` (required, float)
+  - Returns:
+    - `mixerName`
+    - `parameterName`
+    - `value`
+    - `applied`
+- `audio.getListenerSettings`
+  - Returns AudioListener settings. Finds the listener in the scene if no `instanceId` is given.
+  - Params:
+    - `instanceId` (optional, integer; if omitted, finds the first `AudioListener` in the active scene)
+  - Returns:
+    - `target`
+    - `component`
+    - `settings`:
+      - `volume` (float, 0..1; global AudioListener volume)
+      - `velocityUpdateMode` (string: `Auto`, `Fixed`, `Dynamic`)
+- `audio.setListenerSettings`
+  - Mutates AudioListener settings.
+  - Params:
+    - `instanceId` (optional, integer; resolves the same way as `audio.getListenerSettings`)
+    - optional: `volume` (float, 0..1), `pause` (boolean), `velocityUpdateMode` (string)
+  - Notes:
+    - At least one of `volume`, `pause`, or `velocityUpdateMode` is required.
+  - Returns:
+    - `target`
+    - `component`
+    - `applied`
 
 ### Batch 7 — Test Runner
 

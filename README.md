@@ -8,63 +8,39 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
 - Unity Editor package (UPM local package workflow)
 - JSON-RPC 2.0 request/response forwarding
 - Main-thread Unity command dispatch (via `EditorApplication.update`)
+- **179 implemented tools** across 6 batches
 - Implemented methods:
   - MCP: `initialize`, `notifications/initialized`, `ping`
   - MCP: `tools/list`, `tools/call`
   - MCP: `prompts/list` (compatibility, empty)
   - MCP: `resources/list`, `resources/templates/list`, `resources/read`
   - `ping`
-  - `editor.getPlayModeState`
-  - `editor.getConsoleLogs`
-  - `editor.consoleTail`
-  - `editor.enterPlayMode`
-  - `editor.exitPlayMode`
-  - `scene.getActiveScene`
-  - `scene.listOpenScenes`
-  - `scene.getSelection`
-  - `scene.selectObject`
-  - `scene.selectByPath`
-  - `scene.findByPath`
-  - `camera.getSettings`
-  - `camera.setSettings`
-  - `light.getSettings`
-  - `light.setSettings`
-  - `rigidbody.getSettings`
-  - `rigidbody.setSettings`
-  - `collider.getSettings`
-  - `collider.setSettings`
-  - `boxCollider.getSettings`
-  - `boxCollider.setSettings`
-  - `sphereCollider.getSettings`
-  - `sphereCollider.setSettings`
-  - `capsuleCollider.getSettings`
-  - `capsuleCollider.setSettings`
-  - `meshCollider.getSettings`
-  - `meshCollider.setSettings`
-  - `scene.getComponents`
-  - `scene.destroyObject`
-  - `scene.getComponentProperties`
-  - `scene.setComponentProperties`
-  - `scene.setTransform`
-  - `scene.addComponent`
-  - `scene.setSelection`
-  - `scene.pingObject`
-  - `scene.frameSelection`
-  - `scene.frameObject`
-  - `scene.createGameObject`
-  - `scene.setParent`
-  - `scene.duplicateObject`
-  - `scene.renameObject`
-  - `scene.setActive`
-  - `prefab.instantiate`
-  - `prefab.getSource`
-  - `prefab.applyOverrides`
-  - `prefab.revertOverrides`
-  - `scene.findByTag`
-  - `assets.find`
-  - `assets.import`
-  - `assets.ping`
-  - `assets.reveal`
+  - **Editor:** `editor.getPlayModeState`, `editor.getConsoleLogs`, `editor.consoleTail`, `editor.enterPlayMode`, `editor.exitPlayMode`, `editor.pausePlayMode`, `editor.recompileScripts`, `editor.clearConsole`, `editor.getUndoHistory`, `editor.undo`, `editor.redo`, `editor.getLayers`, `editor.addLayer`, `editor.removeLayer`, `editor.getTags`, `editor.addTag`, `editor.removeTag`
+  - **Scene (hierarchy):** `scene.getActiveScene`, `scene.listOpenScenes`, `scene.newScene`, `scene.openScene`, `scene.closeScene`, `scene.save`, `scene.setActiveScene`
+  - **Scene (objects):** `scene.getSelection`, `scene.getSelectionDetails`, `scene.selectObject`, `scene.selectByPath`, `scene.selectByName`, `scene.setSelection`, `scene.findByPath`, `scene.findByTag`, `scene.createGameObject`, `scene.instantiatePrefab`, `scene.destroyObject`, `scene.duplicateObject`, `scene.renameObject`, `scene.setActive`, `scene.setParent`, `scene.setLayer`, `scene.setTag`, `scene.pingObject`, `scene.frameSelection`, `scene.frameObject`
+  - **Scene (components):** `scene.getComponents`, `scene.addComponent`, `scene.getComponentProperties`, `scene.setComponentProperties`, `scene.setTransform`
+  - **Camera:** `camera.getSettings`, `camera.setSettings`, `camera.getProjection`, `camera.setProjection`
+  - **Light:** `light.getSettings`, `light.setSettings`
+  - **Prefab:** `prefab.instantiate`, `prefab.getSource`, `prefab.applyOverrides`, `prefab.revertOverrides`
+  - **Assets:** `assets.find`, `assets.import`, `assets.ping`, `assets.reveal`, `assets.move`, `assets.delete`, `assets.createFolder`, `assets.createScript`, `assets.createMaterial`, `assets.createPrefab`, `assets.createScriptableObject`
+  - **Renderer:** `renderer.getMaterials`, `renderer.setMaterial`, `meshRenderer.getSettings`, `meshRenderer.setSettings`, `skinnedMeshRenderer.getSettings`, `skinnedMeshRenderer.setSettings`, `spriteRenderer.getSettings`, `spriteRenderer.setSettings`, `lineRenderer.getSettings`, `lineRenderer.setSettings`, `lodGroup.getSettings`, `lodGroup.setSettings`
+  - **Physics 3D — Rigidbody:** `rigidbody.getSettings`, `rigidbody.setSettings`
+  - **Physics 3D — Colliders:** `collider.getSettings`, `collider.setSettings`, `boxCollider.getSettings`, `boxCollider.setSettings`, `sphereCollider.getSettings`, `sphereCollider.setSettings`, `capsuleCollider.getSettings`, `capsuleCollider.setSettings`, `meshCollider.getSettings`, `meshCollider.setSettings`
+  - **Physics 3D — Joints:** `joint.getSettings`, `joint.setSettings`, `hingeJoint.getSettings`, `hingeJoint.setSettings`, `springJoint.getSettings`, `springJoint.setSettings`, `fixedJoint.getSettings`, `fixedJoint.setSettings`, `characterJoint.getSettings`, `characterJoint.setSettings`, `configurableJoint.getSettings`, `configurableJoint.setSettings`
+  - **Physics 3D — Queries:** `physics.raycast`, `physics.overlapSphere`
+  - **Physics 2D — Rigidbody:** `rigidbody2D.getSettings`, `rigidbody2D.setSettings`
+  - **Physics 2D — Colliders:** `collider2D.getSettings`, `collider2D.setSettings`, `boxCollider2D.getSettings`, `boxCollider2D.setSettings`, `circleCollider2D.getSettings`, `circleCollider2D.setSettings`, `capsuleCollider2D.getSettings`, `capsuleCollider2D.setSettings`, `polygonCollider2D.getSettings`, `polygonCollider2D.setSettings`, `edgeCollider2D.getSettings`, `edgeCollider2D.setSettings`, `compositeCollider2D.getSettings`, `compositeCollider2D.setSettings`
+  - **Physics 2D — Joints:** `hingeJoint2D.getSettings`, `hingeJoint2D.setSettings`, `springJoint2D.getSettings`, `springJoint2D.setSettings`, `distanceJoint2D.getSettings`, `distanceJoint2D.setSettings`, `fixedJoint2D.getSettings`, `fixedJoint2D.setSettings`, `sliderJoint2D.getSettings`, `sliderJoint2D.setSettings`, `wheelJoint2D.getSettings`, `wheelJoint2D.setSettings`, `targetJoint2D.getSettings`, `targetJoint2D.setSettings`
+  - **Character:** `characterController.getSettings`, `characterController.setSettings`
+  - **Animator:** `animator.getSettings`, `animator.setSettings`, `animator.getParameters`, `animator.setParameter`
+  - **Audio (Batch 6):** `audio.getSourceSettings`, `audio.setSourceSettings`, `audio.play`, `audio.stop`, `audio.pause`, `audio.unpause`, `audio.getIsPlaying`, `audio.getMixerSettings`, `audio.setMixerParameter`, `audio.getListenerSettings`, `audio.setListenerSettings`
+  - **Audio (component wrappers):** `audioSource.getSettings`, `audioSource.setSettings`
+  - **Particle System:** `particleSystem.getSettings`, `particleSystem.setSettings`, `particleSystem.play`, `particleSystem.stop`
+  - **NavMesh:** `navMesh.bake`, `navMeshAgent.getSettings`, `navMeshAgent.setSettings`, `navMeshObstacle.getSettings`, `navMeshObstacle.setSettings`
+  - **UI:** `canvas.getSettings`, `canvas.setSettings`, `canvasGroup.getSettings`, `canvasGroup.setSettings`, `rectTransform.getSettings`, `rectTransform.setSettings`
+  - **Terrain:** `terrain.getSettings`, `terrain.setSettings`
+  - **Time:** `time.getSettings`, `time.setSettings`
+  - **Build:** `build.getSettings`, `build.setSettings`, `build.build`
 
 ## Repository Layout
 - `src/UnityMcp.Server` - MCP relay server

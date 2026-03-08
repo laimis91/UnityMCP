@@ -6,6 +6,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Batch 8] — 2026-03-08
+
+### Added — Material / Shader Properties (9 tools)
+
+All tools operate on material **asset files** and take `assetPath` (required, string) — the project-relative path to the `.mat` asset (e.g. `Assets/Materials/MyMat.mat`).
+
+- `material.getProperties` — returns all shader properties for a material.
+  - Params: `assetPath`
+  - Returns: `{assetPath, shaderName, propertyCount, properties: [{name, type, value}]}`
+  - Value shapes by type: Color → `{r,g,b,a}`, Vector → `{x,y,z,w}`, Float/Range → number, Int → number, Texture → asset path string or `null`
+- `material.getProperty` — returns a single named shader property.
+  - Params: `assetPath`, `propertyName` (string)
+  - Returns: `{assetPath, name, type, value}`
+  - Throws if the property is not found on the shader.
+- `material.setProperty` — sets a single shader property and saves the asset.
+  - Params: `assetPath`, `propertyName`, `propertyType` (`"color"` | `"float"` | `"int"` | `"vector"` | `"texture"`), `value`
+  - Value shapes: color → `{r,g,b,a}`, vector → `{x,y,z,w}`, float/int → number, texture → asset path string or `null`
+  - Returns: `{assetPath, propertyName, propertyType, updated: true}`
+- `material.getKeywords` — returns the list of active shader keywords on the material.
+  - Params: `assetPath`
+  - Returns: `{assetPath, keywords: string[]}`
+- `material.setKeyword` — enables or disables a single shader keyword.
+  - Params: `assetPath`, `keyword` (string), `enabled` (boolean)
+  - Returns: `{assetPath, keyword, enabled, keywords: string[]}`
+  - **Note:** URP Lit materials may reset keywords because the custom shader GUI manages them.
+- `material.getShader` — returns the name of the shader currently assigned to the material.
+  - Params: `assetPath`
+  - Returns: `{assetPath, shaderName}`
+- `material.setShader` — assigns a different shader to the material.
+  - Params: `assetPath`, `shaderName` (string)
+  - Returns: `{assetPath, shaderName, updated: true}`
+  - Throws if the named shader is not found in the project.
+- `material.getRenderQueue` — returns the render queue value of the material.
+  - Params: `assetPath`
+  - Returns: `{assetPath, renderQueue}`
+- `material.setRenderQueue` — sets the render queue value of the material.
+  - Params: `assetPath`, `renderQueue` (integer)
+  - Returns: `{assetPath, renderQueue, updated: true}`
+  - **Note:** URP Lit materials may override the render queue based on their surface type setting.
+
+---
+
 ## [Batch 7] — 2026-03-08
 
 ### Added — Test Runner (4 tools)

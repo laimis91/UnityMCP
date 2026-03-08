@@ -661,6 +661,16 @@ internal sealed class UnityMcpClient : IDisposable
                 "testRunner.run" => BuildRunTestsResponse(idToken, root),
                 "testRunner.getResults" => BuildGetTestResultsResponse(idToken),
                 "testRunner.cancel" => BuildCancelTestRunResponse(idToken),
+                // Batch 8: Material/Shader Properties
+                "material.getProperties" => BuildGetMaterialPropertiesResponse(idToken, root),
+                "material.getProperty" => BuildGetMaterialPropertyResponse(idToken, root),
+                "material.setProperty" => BuildSetMaterialPropertyResponse(idToken, root),
+                "material.getKeywords" => BuildGetMaterialKeywordsResponse(idToken, root),
+                "material.setKeyword" => BuildSetMaterialKeywordResponse(idToken, root),
+                "material.getShader" => BuildGetMaterialShaderResponse(idToken, root),
+                "material.setShader" => BuildSetMaterialShaderResponse(idToken, root),
+                "material.getRenderQueue" => BuildGetMaterialRenderQueueResponse(idToken, root),
+                "material.setRenderQueue" => BuildSetMaterialRenderQueueResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -12024,6 +12034,289 @@ internal sealed class UnityMcpClient : IDisposable
         }
 
         return null;
+    }
+
+    // ── Batch 8: Material/Shader Properties ────────────────────────────
+
+    private static Material LoadMaterialFromAssetPath(string assetPath)
+    {
+        var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+        if (material == null)
+            throw new ArgumentException($"No Material found at '{assetPath}'.");
+        return material;
+    }
+
+    private static string GetShaderPropertyTypeName(ShaderUtil.ShaderPropertyType type)
+    {
+        return type switch
+        {
+            ShaderUtil.ShaderPropertyType.Color => "Color",
+            ShaderUtil.ShaderPropertyType.Vector => "Vector",
+            ShaderUtil.ShaderPropertyType.Float => "Float",
+            ShaderUtil.ShaderPropertyType.Range => "Range",
+            ShaderUtil.ShaderPropertyType.TexEnv => "Texture",
+            _ => type.ToString()
+        };
+    }
+
+    private static object GetShaderPropertyValue(Material material, string propName, ShaderUtil.ShaderPropertyType propType)
+    {
+        switch (propType)
+        {
+            case ShaderUtil.ShaderPropertyType.Color:
+                var c = material.GetColor(propName);
+                return new { r = c.r, g = c.g, b = c.b, a = c.a };
+            case ShaderUtil.ShaderPropertyType.Vector:
+                var v = material.GetVector(propName);
+                return new { x = v.x, y = v.y, z = v.z, w = v.w };
+            case ShaderUtil.ShaderPropertyType.Float:
+            case ShaderUtil.ShaderPropertyType.Range:
+                return material.GetFloat(propName);
+            case ShaderUtil.ShaderPropertyType.TexEnv:
+                var tex = material.GetTexture(propName);
+                return tex != null ? AssetDatabase.GetAssetPath(tex) : null;
+            default:
+                // Try Int for newer Unity versions (ShaderPropertyType value 5)
+                if ((int)propType == 5)
+                    return material.GetInt(propName);
+                return null;
+        }
+    }
+
+    private static string BuildGetMaterialPropertiesResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.getProperties");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var material = LoadMaterialFromAssetPath(assetPath);
+        var shader = material.shader;
+        var propertyCount = ShaderUtil.GetPropertyCount(shader);
+
+        var properties = new object[propertyCount];
+        for (var i = 0; i < propertyCount; i++)
+        {
+            var propName = ShaderUtil.GetPropertyName(shader, i);
+            var propType = ShaderUtil.GetPropertyType(shader, i);
+            properties[i] = new
+            {
+                name = propName,
+                type = GetShaderPropertyTypeName(propType),
+                value = GetShaderPropertyValue(material, propName, propType)
+            };
+        }
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            shaderName = shader.name,
+            propertyCount,
+            properties
+        });
+    }
+
+    private static string BuildGetMaterialPropertyResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.getProperty");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var propertyName = ParseRequiredStringParameter(paramsObject, "propertyName");
+        var material = LoadMaterialFromAssetPath(assetPath);
+        var shader = material.shader;
+        var propertyCount = ShaderUtil.GetPropertyCount(shader);
+
+        for (var i = 0; i < propertyCount; i++)
+        {
+            var propName = ShaderUtil.GetPropertyName(shader, i);
+            if (propName == propertyName)
+            {
+                var propType = ShaderUtil.GetPropertyType(shader, i);
+                return UnityMcpProtocol.CreateResult(idToken, new
+                {
+                    assetPath,
+                    name = propName,
+                    type = GetShaderPropertyTypeName(propType),
+                    value = GetShaderPropertyValue(material, propName, propType)
+                });
+            }
+        }
+
+        throw new ArgumentException($"Property '{propertyName}' not found on shader '{shader.name}'.");
+    }
+
+    private static string BuildSetMaterialPropertyResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.setProperty");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var propertyName = ParseRequiredStringParameter(paramsObject, "propertyName");
+        var propertyType = ParseRequiredStringParameter(paramsObject, "propertyType").ToLowerInvariant();
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        if (!material.HasProperty(propertyName))
+            throw new ArgumentException($"Property '{propertyName}' not found on material at '{assetPath}'.");
+
+        if (!paramsObject.TryGetValue("value", out var valueToken))
+            throw new ArgumentException("Parameter 'value' is required.");
+
+        switch (propertyType)
+        {
+            case "color":
+            {
+                var r = valueToken["r"]?.Value<float>() ?? 0f;
+                var g = valueToken["g"]?.Value<float>() ?? 0f;
+                var b = valueToken["b"]?.Value<float>() ?? 0f;
+                var a = valueToken["a"]?.Value<float>() ?? 1f;
+                material.SetColor(propertyName, new Color(r, g, b, a));
+                break;
+            }
+            case "vector":
+            {
+                var x = valueToken["x"]?.Value<float>() ?? 0f;
+                var y = valueToken["y"]?.Value<float>() ?? 0f;
+                var z = valueToken["z"]?.Value<float>() ?? 0f;
+                var w = valueToken["w"]?.Value<float>() ?? 0f;
+                material.SetVector(propertyName, new Vector4(x, y, z, w));
+                break;
+            }
+            case "float":
+                material.SetFloat(propertyName, valueToken.Value<float>());
+                break;
+            case "int":
+                material.SetInt(propertyName, valueToken.Value<int>());
+                break;
+            case "texture":
+            {
+                var texturePath = valueToken.Type == JTokenType.Null ? null : valueToken.Value<string>();
+                if (string.IsNullOrEmpty(texturePath))
+                {
+                    material.SetTexture(propertyName, null);
+                }
+                else
+                {
+                    var texture = AssetDatabase.LoadAssetAtPath<Texture>(texturePath);
+                    if (texture == null)
+                        throw new ArgumentException($"No Texture found at '{texturePath}'.");
+                    material.SetTexture(propertyName, texture);
+                }
+                break;
+            }
+            default:
+                throw new ArgumentException($"Invalid propertyType '{propertyType}'. Expected: color, float, int, vector, texture.");
+        }
+
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            propertyName,
+            propertyType,
+            updated = true
+        });
+    }
+
+    private static string BuildGetMaterialKeywordsResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.getKeywords");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            keywords = material.shaderKeywords
+        });
+    }
+
+    private static string BuildSetMaterialKeywordResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.setKeyword");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var keyword = ParseRequiredStringParameter(paramsObject, "keyword");
+        var enabled = ParseRequiredBooleanParameter(paramsObject, "enabled");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        if (enabled)
+            material.EnableKeyword(keyword);
+        else
+            material.DisableKeyword(keyword);
+
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            keyword,
+            enabled,
+            keywords = material.shaderKeywords
+        });
+    }
+
+    private static string BuildGetMaterialShaderResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.getShader");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            shaderName = material.shader.name
+        });
+    }
+
+    private static string BuildSetMaterialShaderResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.setShader");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var shaderName = ParseRequiredStringParameter(paramsObject, "shaderName");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        var shader = Shader.Find(shaderName);
+        if (shader == null)
+            throw new ArgumentException($"Shader '{shaderName}' not found.");
+
+        material.shader = shader;
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            shaderName = material.shader.name,
+            updated = true
+        });
+    }
+
+    private static string BuildGetMaterialRenderQueueResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.getRenderQueue");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            renderQueue = material.renderQueue
+        });
+    }
+
+    private static string BuildSetMaterialRenderQueueResponse(JToken idToken, JObject root)
+    {
+        var paramsObject = RequireParamsObject(root, "material.setRenderQueue");
+        var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+        var renderQueue = ParseRequiredIntegerParameter(paramsObject, "renderQueue");
+        var material = LoadMaterialFromAssetPath(assetPath);
+
+        material.renderQueue = renderQueue;
+        EditorUtility.SetDirty(material);
+        AssetDatabase.SaveAssets();
+
+        return UnityMcpProtocol.CreateResult(idToken, new
+        {
+            assetPath,
+            renderQueue = material.renderQueue,
+            updated = true
+        });
     }
 }
 }

@@ -17,6 +17,7 @@ using UnityEditor.Build.Reporting;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 
 namespace UnityMcp.Editor
@@ -12061,33 +12062,33 @@ internal sealed class UnityMcpClient : IDisposable
         return material;
     }
 
-    private static string GetShaderPropertyTypeName(ShaderUtil.ShaderPropertyType type)
+    private static string GetShaderPropertyTypeName(ShaderPropertyType type)
     {
         return type switch
         {
-            ShaderUtil.ShaderPropertyType.Color => "Color",
-            ShaderUtil.ShaderPropertyType.Vector => "Vector",
-            ShaderUtil.ShaderPropertyType.Float => "Float",
-            ShaderUtil.ShaderPropertyType.Range => "Range",
-            ShaderUtil.ShaderPropertyType.TexEnv => "Texture",
+            ShaderPropertyType.Color => "Color",
+            ShaderPropertyType.Vector => "Vector",
+            ShaderPropertyType.Float => "Float",
+            ShaderPropertyType.Range => "Range",
+            ShaderPropertyType.Texture => "Texture",
             _ => type.ToString()
         };
     }
 
-    private static object GetShaderPropertyValue(Material material, string propName, ShaderUtil.ShaderPropertyType propType)
+    private static object GetShaderPropertyValue(Material material, string propName, ShaderPropertyType propType)
     {
         switch (propType)
         {
-            case ShaderUtil.ShaderPropertyType.Color:
+            case ShaderPropertyType.Color:
                 var c = material.GetColor(propName);
                 return new { r = c.r, g = c.g, b = c.b, a = c.a };
-            case ShaderUtil.ShaderPropertyType.Vector:
+            case ShaderPropertyType.Vector:
                 var v = material.GetVector(propName);
                 return new { x = v.x, y = v.y, z = v.z, w = v.w };
-            case ShaderUtil.ShaderPropertyType.Float:
-            case ShaderUtil.ShaderPropertyType.Range:
+            case ShaderPropertyType.Float:
+            case ShaderPropertyType.Range:
                 return material.GetFloat(propName);
-            case ShaderUtil.ShaderPropertyType.TexEnv:
+            case ShaderPropertyType.Texture:
                 var tex = material.GetTexture(propName);
                 return tex != null ? AssetDatabase.GetAssetPath(tex) : null;
             default:
@@ -12104,13 +12105,13 @@ internal sealed class UnityMcpClient : IDisposable
         var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
         var material = LoadMaterialFromAssetPath(assetPath);
         var shader = material.shader;
-        var propertyCount = ShaderUtil.GetPropertyCount(shader);
+        var propertyCount = shader.GetPropertyCount();
 
         var properties = new object[propertyCount];
         for (var i = 0; i < propertyCount; i++)
         {
-            var propName = ShaderUtil.GetPropertyName(shader, i);
-            var propType = ShaderUtil.GetPropertyType(shader, i);
+            var propName = shader.GetPropertyName(i);
+            var propType = shader.GetPropertyType(i);
             properties[i] = new
             {
                 name = propName,
@@ -12135,14 +12136,14 @@ internal sealed class UnityMcpClient : IDisposable
         var propertyName = ParseRequiredStringParameter(paramsObject, "propertyName");
         var material = LoadMaterialFromAssetPath(assetPath);
         var shader = material.shader;
-        var propertyCount = ShaderUtil.GetPropertyCount(shader);
+        var propertyCount = shader.GetPropertyCount();
 
         for (var i = 0; i < propertyCount; i++)
         {
-            var propName = ShaderUtil.GetPropertyName(shader, i);
+            var propName = shader.GetPropertyName(i);
             if (propName == propertyName)
             {
-                var propType = ShaderUtil.GetPropertyType(shader, i);
+                var propType = shader.GetPropertyType(i);
                 return UnityMcpProtocol.CreateResult(idToken, new
                 {
                     assetPath,

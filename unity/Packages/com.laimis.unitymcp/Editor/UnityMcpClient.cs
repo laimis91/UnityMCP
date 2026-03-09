@@ -12705,7 +12705,7 @@ internal sealed class UnityMcpClient : IDisposable
             defaultContactOffset = Physics.defaultContactOffset,
             bounceThreshold = Physics.bounceThreshold,
             defaultMaxDepenetrationVelocity = Physics.defaultMaxDepenetrationVelocity,
-            autoSimulation = Physics.simulationMode == SimulationMode.AutoSimulation,
+            autoSimulation = Physics.simulationMode == SimulationMode.FixedUpdate,
             autoSyncTransforms = true, // Physics.SyncTransforms() is now a method call
             reuseCollisionCallbacks = Physics.reuseCollisionCallbacks
         });
@@ -12775,7 +12775,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (paramsObject.TryGetValue("autoSimulation", out var autoSimToken) && autoSimToken.Type == JTokenType.Boolean)
         {
-            Physics.simulationMode = autoSimToken.Value<bool>() ? SimulationMode.AutoSimulation : SimulationMode.Script;
+            Physics.simulationMode = autoSimToken.Value<bool>() ? SimulationMode.FixedUpdate : SimulationMode.Script;
             updated.Add("autoSimulation");
         }
 

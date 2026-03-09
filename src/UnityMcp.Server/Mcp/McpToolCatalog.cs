@@ -2840,6 +2840,366 @@ public sealed class McpToolCatalog
                             ["description"] = "Render queue value. Common values: 2000 (Geometry), 2450 (AlphaTest), 3000 (Transparent)."
                         }
                     }
+                }),
+            // ── Batch 9: Scene Hierarchy Snapshot ──────────────────────────────
+            new McpToolDefinition(
+                "scene.getHierarchy",
+                "Returns the full scene tree with object names, instance IDs, active states, hierarchy depth, and component lists.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["includeInactive"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether to include inactive GameObjects in the hierarchy (default true)."
+                        },
+                        ["maxDepth"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum hierarchy depth to traverse (unlimited if not specified)."
+                        },
+                        ["rootFilter"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Name of specific root GameObject to start traversal from (searches all roots if not specified)."
+                        },
+                        ["scenePath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Scene asset path to get hierarchy from (uses active scene if not specified)."
+                        },
+                        ["allScenes"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether to get hierarchy from all open scenes (default false)."
+                        },
+                        ["maxNodes"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["maximum"] = 10000,
+                            ["description"] = "Maximum number of nodes to return (default 2000)."
+                        }
+                    }
+                }),
+            // ── Batch 9: Project Settings ──────────────────────────────────────
+            new McpToolDefinition(
+                "projectSettings.getPlayerSettings",
+                "Returns curated Unity Player Settings properties including build and platform settings.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "projectSettings.setPlayerSettings",
+                "Updates Unity Player Settings properties. Supports any subset of available properties.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["companyName"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Company name shown in player."
+                        },
+                        ["productName"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Product name shown in player title bar."
+                        },
+                        ["applicationIdentifier"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Application identifier/bundle ID for the target platform."
+                        },
+                        ["bundleVersion"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Bundle version string."
+                        },
+                        ["defaultScreenWidth"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Default screen width in pixels."
+                        },
+                        ["defaultScreenHeight"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Default screen height in pixels."
+                        },
+                        ["fullscreenMode"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["enum"] = new JsonArray("ExclusiveFullScreen", "FullScreenWindow", "MaximizedWindow", "Windowed"),
+                            ["description"] = "Default fullscreen mode."
+                        },
+                        ["runInBackground"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether application continues running when it loses focus."
+                        },
+                        ["colorSpace"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["enum"] = new JsonArray("Gamma", "Linear"),
+                            ["description"] = "Color space for rendering."
+                        },
+                        ["allowUnsafeCode"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Allow unsafe code compilation."
+                        },
+                        ["stripEngineCode"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Strip engine code in builds."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "projectSettings.getQualitySettings",
+                "Returns current quality level and settings including graphics and performance parameters.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "projectSettings.setQualitySettings",
+                "Updates quality level settings. Optionally targets a specific quality level by index.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["levelIndex"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 0,
+                            ["description"] = "Quality level index to update (uses current level if not specified)."
+                        },
+                        ["pixelLightCount"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum number of pixel lights."
+                        },
+                        ["shadows"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["enum"] = new JsonArray("Disabled", "HardOnly", "All"),
+                            ["description"] = "Shadow quality setting."
+                        },
+                        ["shadowResolution"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["enum"] = new JsonArray("Low", "Medium", "High", "VeryHigh"),
+                            ["description"] = "Shadow resolution setting."
+                        },
+                        ["shadowDistance"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum shadow distance."
+                        },
+                        ["antiAliasing"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["enum"] = new JsonArray(0, 2, 4, 8),
+                            ["description"] = "Anti-aliasing sample count."
+                        },
+                        ["vSyncCount"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["enum"] = new JsonArray(0, 1, 2),
+                            ["description"] = "VSync count (0=disabled, 1=enabled, 2=every other frame)."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "projectSettings.getPhysicsSettings",
+                "Returns Unity Physics settings including gravity, solver iterations, and simulation parameters.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "projectSettings.setPhysicsSettings",
+                "Updates Unity Physics settings. Supports any subset of available parameters.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["gravity"] = Vector3Schema("Gravity vector applied to all rigidbodies."),
+                        ["defaultSolverIterations"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Default number of solver iterations for rigidbodies."
+                        },
+                        ["defaultSolverVelocityIterations"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Default number of velocity solver iterations for rigidbodies."
+                        },
+                        ["sleepThreshold"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Mass-normalized kinetic energy threshold below which objects sleep."
+                        },
+                        ["defaultContactOffset"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Contact offset value for newly created colliders."
+                        },
+                        ["bounceThreshold"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Relative velocity threshold for bounce."
+                        },
+                        ["autoSimulation"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether physics simulation runs automatically."
+                        },
+                        ["autoSyncTransforms"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether transform changes are automatically synced with physics."
+                        }
+                    }
+                }),
+            // ── Batch 9: Physics2D Settings ────────────────────────────────────
+            new McpToolDefinition(
+                "physics2D.getSettings",
+                "Returns Unity Physics2D settings including gravity, iterations, thresholds, and simulation parameters.",
+                EmptyObjectSchema()),
+            new McpToolDefinition(
+                "physics2D.setSettings",
+                "Updates Unity Physics2D settings. Supports any subset of available parameters.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["gravity"] = Vector2Schema("Gravity vector applied to all 2D rigidbodies."),
+                        ["defaultContactOffset"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Contact offset value for newly created 2D colliders."
+                        },
+                        ["velocityIterations"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Number of velocity solver iterations per step."
+                        },
+                        ["positionIterations"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Number of position solver iterations per step."
+                        },
+                        ["velocityThreshold"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Velocity threshold for collision response."
+                        },
+                        ["maxLinearCorrection"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum linear position correction per step."
+                        },
+                        ["maxAngularCorrection"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum angular correction per step in radians."
+                        },
+                        ["maxTranslationSpeed"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum translation speed for continuous collision detection."
+                        },
+                        ["maxRotationSpeed"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["minimum"] = 0,
+                            ["description"] = "Maximum rotation speed for continuous collision detection."
+                        },
+                        ["autoSimulation"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether 2D physics simulation runs automatically."
+                        },
+                        ["autoSyncTransforms"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether 2D transform changes are automatically synced with physics."
+                        },
+                        ["reuseCollisionCallbacks"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Whether to reuse collision callback objects."
+                        }
+                    }
+                }),
+            // ── Batch 9: Scene Screenshot Capture ──────────────────────────────
+            new McpToolDefinition(
+                "editor.captureSceneView",
+                "Captures the Unity Editor Scene View as a base64-encoded PNG image.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["width"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Capture width in pixels (default 1920)."
+                        },
+                        ["height"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Capture height in pixels (default 1080)."
+                        }
+                    }
+                }),
+            new McpToolDefinition(
+                "editor.captureGameView",
+                "Captures the Unity Editor Game View as a base64-encoded PNG image. Only works in Play mode.",
+                new JsonObject
+                {
+                    ["type"] = "object",
+                    ["additionalProperties"] = false,
+                    ["properties"] = new JsonObject
+                    {
+                        ["width"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Capture width in pixels (uses game view size if not specified)."
+                        },
+                        ["height"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Capture height in pixels (uses game view size if not specified)."
+                        }
+                    }
                 })
         };
 

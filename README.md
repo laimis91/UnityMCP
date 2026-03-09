@@ -8,7 +8,7 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
 - Unity Editor package (UPM local package workflow)
 - JSON-RPC 2.0 request/response forwarding
 - Main-thread Unity command dispatch (via `EditorApplication.update`)
-- **192 implemented tools** across 8 batches
+- **203 implemented tools** across 9 batches
 - Implemented methods:
   - MCP: `initialize`, `notifications/initialized`, `ping`
   - MCP: `tools/list`, `tools/call`
@@ -16,7 +16,7 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - MCP: `resources/list`, `resources/templates/list`, `resources/read`
   - `ping`
   - **Editor:** `editor.getPlayModeState`, `editor.getConsoleLogs`, `editor.consoleTail`, `editor.enterPlayMode`, `editor.exitPlayMode`, `editor.pausePlayMode`, `editor.recompileScripts`, `editor.clearConsole`, `editor.getUndoHistory`, `editor.undo`, `editor.redo`, `editor.getLayers`, `editor.addLayer`, `editor.removeLayer`, `editor.getTags`, `editor.addTag`, `editor.removeTag`
-  - **Scene (hierarchy):** `scene.getActiveScene`, `scene.listOpenScenes`, `scene.newScene`, `scene.openScene`, `scene.closeScene`, `scene.save`, `scene.setActiveScene`
+  - **Scene (hierarchy):** `scene.getActiveScene`, `scene.listOpenScenes`, `scene.newScene`, `scene.openScene`, `scene.closeScene`, `scene.save`, `scene.setActiveScene`, `scene.getHierarchy`
   - **Scene (objects):** `scene.getSelection`, `scene.getSelectionDetails`, `scene.selectObject`, `scene.selectByPath`, `scene.selectByName`, `scene.setSelection`, `scene.findByPath`, `scene.findByTag`, `scene.createGameObject`, `scene.instantiatePrefab`, `scene.destroyObject`, `scene.duplicateObject`, `scene.renameObject`, `scene.setActive`, `scene.setParent`, `scene.setLayer`, `scene.setTag`, `scene.pingObject`, `scene.frameSelection`, `scene.frameObject`
   - **Scene (components):** `scene.getComponents`, `scene.addComponent`, `scene.getComponentProperties`, `scene.setComponentProperties`, `scene.setTransform`
   - **Camera:** `camera.getSettings`, `camera.setSettings`, `camera.getProjection`, `camera.setProjection`
@@ -43,6 +43,10 @@ MVP foundation for a local MCP relay server and Unity Editor package that let Co
   - **Build:** `build.getSettings`, `build.setSettings`, `build.build`
   - **Test Runner (Batch 7):** `testRunner.listTests`, `testRunner.run`, `testRunner.getResults`, `testRunner.cancel`
   - **Material (Batch 8):** `material.getProperties`, `material.getProperty`, `material.setProperty`, `material.getKeywords`, `material.setKeyword`, `material.getShader`, `material.setShader`, `material.getRenderQueue`, `material.setRenderQueue`
+  - **Scene Capture (Batch 9):** `editor.captureSceneView`, `editor.captureGameView`
+  - **Project Settings (Batch 9):** `projectSettings.getPlayerSettings`, `projectSettings.setPlayerSettings`, `projectSettings.getQualitySettings`, `projectSettings.setQualitySettings`, `projectSettings.getPhysicsSettings`, `projectSettings.setPhysicsSettings`
+  - **Physics2D Settings (Batch 9):** `physics2D.getSettings`, `physics2D.setSettings`
+  - **Scene Hierarchy (Batch 9):** `scene.getHierarchy`
 
 ## Repository Layout
 - `src/UnityMcp.Server` - MCP relay server

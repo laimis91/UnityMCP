@@ -12075,7 +12075,7 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
-    private static object GetShaderPropertyValue(Material material, string propName, ShaderPropertyType propType)
+    private static object? GetShaderPropertyValue(Material material, string propName, ShaderPropertyType propType)
     {
         switch (propType)
         {

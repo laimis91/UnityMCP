@@ -153,6 +153,18 @@ public sealed class McpRequestHandlerTests
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.setMixerParameter");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.getListenerSettings");
         Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "audio.setListenerSettings");
+        // Batch 9 tools
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "scene.getHierarchy");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.getPlayerSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.setPlayerSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.getQualitySettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.setQualitySettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.getPhysicsSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "projectSettings.setPhysicsSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "physics2D.getSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "physics2D.setSettings");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "editor.captureSceneView");
+        Assert.Contains(tools.EnumerateArray(), tool => tool.GetProperty("name").GetString() == "editor.captureGameView");
     }
 
     [Fact]

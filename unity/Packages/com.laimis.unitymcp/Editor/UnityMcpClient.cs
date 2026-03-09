@@ -12785,6 +12785,11 @@ internal sealed class UnityMcpClient : IDisposable
             updated.Add("autoSyncTransforms");
         }
 
+        if (updated.Count > 0)
+        {
+            AssetDatabase.SaveAssets();
+        }
+
         return UnityMcpProtocol.CreateResult(idToken, new
         {
             updated = updated.ToArray(),
@@ -12927,6 +12932,11 @@ internal sealed class UnityMcpClient : IDisposable
         {
             Physics2D.reuseCollisionCallbacks = reuseToken.Value<bool>();
             updated.Add("reuseCollisionCallbacks");
+        }
+
+        if (updated.Count > 0)
+        {
+            AssetDatabase.SaveAssets();
         }
 
         return UnityMcpProtocol.CreateResult(idToken, new

@@ -12338,11 +12338,11 @@ internal sealed class UnityMcpClient : IDisposable
         var paramsObject = RequireParamsObject(root, "scene.getHierarchy");
 
         // Parse optional parameters
-        var includeInactive = ParseOptionalBooleanParameter(paramsObject, "includeInactive") ?? true;
+        var includeInactive = ParseOptionalBooleanParameter(paramsObject, "includeInactive", true);
         var maxDepth = ParseOptionalIntegerParameter(paramsObject, "maxDepth");
         var rootFilter = ParseOptionalStringParameter(paramsObject, "rootFilter");
         var scenePath = ParseOptionalStringParameter(paramsObject, "scenePath");
-        var allScenes = ParseOptionalBooleanParameter(paramsObject, "allScenes") ?? false;
+        var allScenes = ParseOptionalBooleanParameter(paramsObject, "allScenes");
         var maxNodes = ParseOptionalIntegerParameter(paramsObject, "maxNodes") ?? 2000;
 
         if (maxNodes < 1 || maxNodes > 10000)
@@ -12479,22 +12479,21 @@ internal sealed class UnityMcpClient : IDisposable
         {
             companyName = PlayerSettings.companyName,
             productName = PlayerSettings.productName,
-            applicationIdentifier = PlayerSettings.GetApplicationIdentifier(EditorUserBuildSettings.selectedBuildTargetGroup),
+            applicationIdentifier = PlayerSettings.GetApplicationIdentifier(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup)),
             bundleVersion = PlayerSettings.bundleVersion,
             defaultScreenWidth = PlayerSettings.defaultScreenWidth,
             defaultScreenHeight = PlayerSettings.defaultScreenHeight,
             fullscreenMode = PlayerSettings.fullScreenMode.ToString(),
             runInBackground = PlayerSettings.runInBackground,
-            scriptingBackend = PlayerSettings.GetScriptingBackend(EditorUserBuildSettings.selectedBuildTargetGroup).ToString(),
-            apiCompatibilityLevel = PlayerSettings.GetApiCompatibilityLevel(EditorUserBuildSettings.selectedBuildTargetGroup).ToString(),
+            scriptingBackend = PlayerSettings.GetScriptingBackend(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup)).ToString(),
+            apiCompatibilityLevel = PlayerSettings.GetApiCompatibilityLevel(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup)).ToString(),
             colorSpace = PlayerSettings.colorSpace.ToString(),
             allowUnsafeCode = PlayerSettings.allowUnsafeCode,
             stripEngineCode = PlayerSettings.stripEngineCode,
             defaultInterfaceOrientation = PlayerSettings.defaultInterfaceOrientation.ToString(),
             useAnimatedAutorotation = PlayerSettings.useAnimatedAutorotation,
             gpuSkinning = PlayerSettings.gpuSkinning,
-            graphicsJobs = PlayerSettings.graphicsJobs,
-            activeInputHandler = PlayerSettings.activeInputHandler.ToString()
+            graphicsJobs = PlayerSettings.graphicsJobs
         });
     }
 
@@ -12517,7 +12516,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (paramsObject.TryGetValue("applicationIdentifier", out var appIdToken) && appIdToken.Type == JTokenType.String)
         {
-            PlayerSettings.SetApplicationIdentifier(EditorUserBuildSettings.selectedBuildTargetGroup, appIdToken.Value<string>()!);
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup), appIdToken.Value<string>()!);
             updated.Add("applicationIdentifier");
         }
 
@@ -12705,8 +12704,8 @@ internal sealed class UnityMcpClient : IDisposable
             defaultContactOffset = Physics.defaultContactOffset,
             bounceThreshold = Physics.bounceThreshold,
             defaultMaxDepenetrationVelocity = Physics.defaultMaxDepenetrationVelocity,
-            autoSimulation = Physics.autoSimulation,
-            autoSyncTransforms = Physics.autoSyncTransforms,
+            autoSimulation = Physics.simulationMode == SimulationMode.AutoSimulation,
+            autoSyncTransforms = true, // Physics.SyncTransforms() is now a method call
             reuseCollisionCallbacks = Physics.reuseCollisionCallbacks
         });
     }
@@ -12775,13 +12774,13 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (paramsObject.TryGetValue("autoSimulation", out var autoSimToken) && autoSimToken.Type == JTokenType.Boolean)
         {
-            Physics.autoSimulation = autoSimToken.Value<bool>();
+            Physics.simulationMode = autoSimToken.Value<bool>() ? SimulationMode.AutoSimulation : SimulationMode.Script;
             updated.Add("autoSimulation");
         }
 
         if (paramsObject.TryGetValue("autoSyncTransforms", out var autoSyncToken) && autoSyncToken.Type == JTokenType.Boolean)
         {
-            Physics.autoSyncTransforms = autoSyncToken.Value<bool>();
+            if (autoSyncToken.Value<bool>()) Physics.SyncTransforms(); // Call sync method if true
             updated.Add("autoSyncTransforms");
         }
 
@@ -12807,7 +12806,7 @@ internal sealed class UnityMcpClient : IDisposable
             defaultContactOffset = Physics2D.defaultContactOffset,
             velocityIterations = Physics2D.velocityIterations,
             positionIterations = Physics2D.positionIterations,
-            velocityThreshold = Physics2D.velocityThreshold,
+            bounceThreshold = Physics2D.bounceThreshold,
             maxLinearCorrection = Physics2D.maxLinearCorrection,
             maxAngularCorrection = Physics2D.maxAngularCorrection,
             maxTranslationSpeed = Physics2D.maxTranslationSpeed,
@@ -12818,7 +12817,7 @@ internal sealed class UnityMcpClient : IDisposable
             linearSleepTolerance = Physics2D.linearSleepTolerance,
             angularSleepTolerance = Physics2D.angularSleepTolerance,
             autoSimulation = Physics2D.simulationMode == SimulationMode2D.FixedUpdate,
-            autoSyncTransforms = Physics2D.autoSyncTransforms,
+            autoSyncTransforms = true, // Physics2D.SyncTransforms() is now a method call
             callbacksOnDisable = Physics2D.callbacksOnDisable,
             reuseCollisionCallbacks = Physics2D.reuseCollisionCallbacks
         });
@@ -12871,8 +12870,8 @@ internal sealed class UnityMcpClient : IDisposable
             var value = velThresholdToken.Value<float>();
             if (value >= 0)
             {
-                Physics2D.velocityThreshold = value;
-                updated.Add("velocityThreshold");
+                Physics2D.bounceThreshold = value;
+                updated.Add("bounceThreshold");
             }
         }
 
@@ -12924,7 +12923,7 @@ internal sealed class UnityMcpClient : IDisposable
 
         if (paramsObject.TryGetValue("autoSyncTransforms", out var autoSyncToken) && autoSyncToken.Type == JTokenType.Boolean)
         {
-            Physics2D.autoSyncTransforms = autoSyncToken.Value<bool>();
+            if (autoSyncToken.Value<bool>()) Physics2D.SyncTransforms(); // Call sync method if true
             updated.Add("autoSyncTransforms");
         }
 

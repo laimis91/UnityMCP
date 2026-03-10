@@ -13,7 +13,6 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEditor.Build;
-using UnityEditor.Build.Reporting;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 using UnityEngine.AI;
@@ -321,249 +320,249 @@ internal sealed class UnityMcpClient : IDisposable
             string response = method switch
             {
                 "ping" => BuildPingResponse(idToken),
-                "editor.getPlayModeState" => BuildPlayModeStateResponse(idToken),
-                "editor.getConsoleLogs" => BuildGetConsoleLogsResponse(idToken, root),
-                "editor.consoleTail" => BuildConsoleTailResponse(idToken, root),
-                "editor.enterPlayMode" => BuildSetPlayModeResponse(idToken, shouldPlay: true),
-                "editor.exitPlayMode" => BuildSetPlayModeResponse(idToken, shouldPlay: false),
-                "scene.getActiveScene" => BuildGetActiveSceneResponse(idToken),
-                "scene.listOpenScenes" => BuildListOpenScenesResponse(idToken),
-                "scene.getSelection" => BuildGetSelectionResponse(idToken),
-                "scene.selectObject" => BuildSelectObjectResponse(idToken, root),
-                "scene.selectByPath" => BuildSelectByPathResponse(idToken, root),
-                "scene.findByPath" => BuildFindByPathResponse(idToken, root),
-                "camera.getSettings" => BuildGetCameraSettingsResponse(idToken, root),
-                "camera.setSettings" => BuildSetCameraSettingsResponse(idToken, root),
-                "light.getSettings" => BuildGetLightSettingsResponse(idToken, root),
-                "light.setSettings" => BuildSetLightSettingsResponse(idToken, root),
-                "rigidbody.getSettings" => BuildGetRigidbodySettingsResponse(idToken, root),
-                "rigidbody.setSettings" => BuildSetRigidbodySettingsResponse(idToken, root),
-                "rigidbody2D.getSettings" => BuildGetRigidbody2DSettingsResponse(idToken, root),
-                "rigidbody2D.setSettings" => BuildSetRigidbody2DSettingsResponse(idToken, root),
-                "collider.getSettings" => BuildGetColliderSettingsResponse(idToken, root),
-                "collider.setSettings" => BuildSetColliderSettingsResponse(idToken, root),
-                "collider2D.getSettings" => BuildGetCollider2DSettingsResponse(idToken, root),
-                "collider2D.setSettings" => BuildSetCollider2DSettingsResponse(idToken, root),
-                "boxCollider.getSettings" => BuildGetBoxColliderSettingsResponse(idToken, root),
-                "boxCollider.setSettings" => BuildSetBoxColliderSettingsResponse(idToken, root),
-                "boxCollider2D.getSettings" => BuildGetBoxCollider2DSettingsResponse(idToken, root),
-                "boxCollider2D.setSettings" => BuildSetBoxCollider2DSettingsResponse(idToken, root),
-                "sphereCollider.getSettings" => BuildGetSphereColliderSettingsResponse(idToken, root),
-                "sphereCollider.setSettings" => BuildSetSphereColliderSettingsResponse(idToken, root),
-                "sphereCollider2D.getSettings" => BuildGetCircleCollider2DSettingsResponse(idToken, root),
-                "sphereCollider2D.setSettings" => BuildSetCircleCollider2DSettingsResponse(idToken, root),
-                "circleCollider2D.getSettings" => BuildGetCircleCollider2DSettingsResponse(idToken, root),
-                "circleCollider2D.setSettings" => BuildSetCircleCollider2DSettingsResponse(idToken, root),
-                "capsuleCollider.getSettings" => BuildGetCapsuleColliderSettingsResponse(idToken, root),
-                "capsuleCollider.setSettings" => BuildSetCapsuleColliderSettingsResponse(idToken, root),
-                "capsuleCollider2D.getSettings" => BuildGetCapsuleCollider2DSettingsResponse(idToken, root),
-                "capsuleCollider2D.setSettings" => BuildSetCapsuleCollider2DSettingsResponse(idToken, root),
-                "meshCollider.getSettings" => BuildGetMeshColliderSettingsResponse(idToken, root),
-                "meshCollider.setSettings" => BuildSetMeshColliderSettingsResponse(idToken, root),
-                "polygonCollider2D.getSettings" => BuildGetPolygonCollider2DSettingsResponse(idToken, root),
-                "polygonCollider2D.setSettings" => BuildSetPolygonCollider2DSettingsResponse(idToken, root),
-                "edgeCollider2D.getSettings" => BuildGetEdgeCollider2DSettingsResponse(idToken, root),
-                "edgeCollider2D.setSettings" => BuildSetEdgeCollider2DSettingsResponse(idToken, root),
-                "compositeCollider2D.getSettings" => BuildGetCompositeCollider2DSettingsResponse(idToken, root),
-                "compositeCollider2D.setSettings" => BuildSetCompositeCollider2DSettingsResponse(idToken, root),
-                "hingeJoint2D.getSettings" => BuildGetHingeJoint2DSettingsResponse(idToken, root),
-                "hingeJoint2D.setSettings" => BuildSetHingeJoint2DSettingsResponse(idToken, root),
-                "springJoint2D.getSettings" => BuildGetSpringJoint2DSettingsResponse(idToken, root),
-                "springJoint2D.setSettings" => BuildSetSpringJoint2DSettingsResponse(idToken, root),
-                "distanceJoint2D.getSettings" => BuildGetDistanceJoint2DSettingsResponse(idToken, root),
-                "distanceJoint2D.setSettings" => BuildSetDistanceJoint2DSettingsResponse(idToken, root),
-                "fixedJoint2D.getSettings" => BuildGetFixedJoint2DSettingsResponse(idToken, root),
-                "fixedJoint2D.setSettings" => BuildSetFixedJoint2DSettingsResponse(idToken, root),
-                "sliderJoint2D.getSettings" => BuildGetSliderJoint2DSettingsResponse(idToken, root),
-                "sliderJoint2D.setSettings" => BuildSetSliderJoint2DSettingsResponse(idToken, root),
-                "wheelJoint2D.getSettings" => BuildGetWheelJoint2DSettingsResponse(idToken, root),
-                "wheelJoint2D.setSettings" => BuildSetWheelJoint2DSettingsResponse(idToken, root),
-                "targetJoint2D.getSettings" => BuildGetTargetJoint2DSettingsResponse(idToken, root),
-                "targetJoint2D.setSettings" => BuildSetTargetJoint2DSettingsResponse(idToken, root),
-                "hingeJoint.getSettings" => BuildGetHingeJointSettingsResponse(idToken, root),
-                "hingeJoint.setSettings" => BuildSetHingeJointSettingsResponse(idToken, root),
-                "springJoint.getSettings" => BuildGetSpringJointSettingsResponse(idToken, root),
-                "springJoint.setSettings" => BuildSetSpringJointSettingsResponse(idToken, root),
-                "fixedJoint.getSettings" => BuildGetFixedJointSettingsResponse(idToken, root),
-                "fixedJoint.setSettings" => BuildSetFixedJointSettingsResponse(idToken, root),
-                "characterJoint.getSettings" => BuildGetCharacterJointSettingsResponse(idToken, root),
-                "characterJoint.setSettings" => BuildSetCharacterJointSettingsResponse(idToken, root),
-                "configurableJoint.getSettings" => BuildGetConfigurableJointSettingsResponse(idToken, root),
-                "configurableJoint.setSettings" => BuildSetConfigurableJointSettingsResponse(idToken, root),
-                "scene.getComponents" => BuildGetComponentsResponse(idToken, root),
-                "scene.destroyObject" => BuildDestroyObjectResponse(idToken, root),
-                "scene.getComponentProperties" => BuildGetComponentPropertiesResponse(idToken, root),
-                "scene.setComponentProperties" => BuildSetComponentPropertiesResponse(idToken, root),
-                "scene.setTransform" => BuildSetTransformResponse(idToken, root),
-                "scene.addComponent" => BuildAddComponentResponse(idToken, root),
-                "scene.setSelection" => BuildSetSelectionResponse(idToken, root),
-                "scene.pingObject" => BuildPingObjectResponse(idToken, root),
-                "scene.frameSelection" => BuildFrameSelectionResponse(idToken),
-                "scene.frameObject" => BuildFrameObjectResponse(idToken, root),
-                "scene.createGameObject" => BuildCreateGameObjectResponse(idToken, root),
-                "scene.setParent" => BuildSetParentResponse(idToken, root),
-                "scene.duplicateObject" => BuildDuplicateObjectResponse(idToken, root),
-                "scene.renameObject" => BuildRenameObjectResponse(idToken, root),
-                "scene.setActive" => BuildSetActiveResponse(idToken, root),
-                "prefab.instantiate" => BuildInstantiatePrefabResponse(idToken, root),
-                "prefab.getSource" => BuildGetPrefabSourceResponse(idToken, root),
-                "prefab.applyOverrides" => BuildApplyPrefabOverridesResponse(idToken, root),
-                "prefab.revertOverrides" => BuildRevertPrefabOverridesResponse(idToken, root),
-                "scene.findByTag" => BuildFindByTagResponse(idToken, root),
-                "scene.getHierarchy" => BuildGetSceneHierarchyResponse(idToken, root),
-                "assets.find" => BuildFindAssetsResponse(idToken, root),
-                "assets.import" => BuildImportAssetResponse(idToken, root),
-                "assets.ping" => BuildPingAssetResponse(idToken, root),
-                "assets.reveal" => BuildRevealAssetResponse(idToken, root),
+                "editor.getPlayModeState" => EditorHandler.BuildPlayModeStateResponse(idToken),
+                "editor.getConsoleLogs" => EditorHandler.BuildGetConsoleLogsResponse(idToken, root),
+                "editor.consoleTail" => EditorHandler.BuildConsoleTailResponse(idToken, root),
+                "editor.enterPlayMode" => EditorHandler.BuildSetPlayModeResponse(idToken, shouldPlay: true),
+                "editor.exitPlayMode" => EditorHandler.BuildSetPlayModeResponse(idToken, shouldPlay: false),
+                "scene.getActiveScene" => SceneHandler.BuildGetActiveSceneResponse(idToken),
+                "scene.listOpenScenes" => SceneHandler.BuildListOpenScenesResponse(idToken),
+                "scene.getSelection" => SceneHandler.BuildGetSelectionResponse(idToken),
+                "scene.selectObject" => SceneHandler.BuildSelectObjectResponse(idToken, root),
+                "scene.selectByPath" => SceneHandler.BuildSelectByPathResponse(idToken, root),
+                "scene.findByPath" => SceneHandler.BuildFindByPathResponse(idToken, root),
+                "camera.getSettings" => CameraHandler.BuildGetCameraSettingsResponse(idToken, root),
+                "camera.setSettings" => CameraHandler.BuildSetCameraSettingsResponse(idToken, root),
+                "light.getSettings" => LightHandler.BuildGetLightSettingsResponse(idToken, root),
+                "light.setSettings" => LightHandler.BuildSetLightSettingsResponse(idToken, root),
+                "rigidbody.getSettings" => PhysicsHandler.BuildGetRigidbodySettingsResponse(idToken, root),
+                "rigidbody.setSettings" => PhysicsHandler.BuildSetRigidbodySettingsResponse(idToken, root),
+                "rigidbody2D.getSettings" => Physics2DHandler.BuildGetRigidbody2DSettingsResponse(idToken, root),
+                "rigidbody2D.setSettings" => Physics2DHandler.BuildSetRigidbody2DSettingsResponse(idToken, root),
+                "collider.getSettings" => PhysicsHandler.BuildGetColliderSettingsResponse(idToken, root),
+                "collider.setSettings" => PhysicsHandler.BuildSetColliderSettingsResponse(idToken, root),
+                "collider2D.getSettings" => Physics2DHandler.BuildGetCollider2DSettingsResponse(idToken, root),
+                "collider2D.setSettings" => Physics2DHandler.BuildSetCollider2DSettingsResponse(idToken, root),
+                "boxCollider.getSettings" => PhysicsHandler.BuildGetBoxColliderSettingsResponse(idToken, root),
+                "boxCollider.setSettings" => PhysicsHandler.BuildSetBoxColliderSettingsResponse(idToken, root),
+                "boxCollider2D.getSettings" => Physics2DHandler.BuildGetBoxCollider2DSettingsResponse(idToken, root),
+                "boxCollider2D.setSettings" => Physics2DHandler.BuildSetBoxCollider2DSettingsResponse(idToken, root),
+                "sphereCollider.getSettings" => PhysicsHandler.BuildGetSphereColliderSettingsResponse(idToken, root),
+                "sphereCollider.setSettings" => PhysicsHandler.BuildSetSphereColliderSettingsResponse(idToken, root),
+                "sphereCollider2D.getSettings" => Physics2DHandler.BuildGetCircleCollider2DSettingsResponse(idToken, root),
+                "sphereCollider2D.setSettings" => Physics2DHandler.BuildSetCircleCollider2DSettingsResponse(idToken, root),
+                "circleCollider2D.getSettings" => Physics2DHandler.BuildGetCircleCollider2DSettingsResponse(idToken, root),
+                "circleCollider2D.setSettings" => Physics2DHandler.BuildSetCircleCollider2DSettingsResponse(idToken, root),
+                "capsuleCollider.getSettings" => PhysicsHandler.BuildGetCapsuleColliderSettingsResponse(idToken, root),
+                "capsuleCollider.setSettings" => PhysicsHandler.BuildSetCapsuleColliderSettingsResponse(idToken, root),
+                "capsuleCollider2D.getSettings" => Physics2DHandler.BuildGetCapsuleCollider2DSettingsResponse(idToken, root),
+                "capsuleCollider2D.setSettings" => Physics2DHandler.BuildSetCapsuleCollider2DSettingsResponse(idToken, root),
+                "meshCollider.getSettings" => PhysicsHandler.BuildGetMeshColliderSettingsResponse(idToken, root),
+                "meshCollider.setSettings" => PhysicsHandler.BuildSetMeshColliderSettingsResponse(idToken, root),
+                "polygonCollider2D.getSettings" => Physics2DHandler.BuildGetPolygonCollider2DSettingsResponse(idToken, root),
+                "polygonCollider2D.setSettings" => Physics2DHandler.BuildSetPolygonCollider2DSettingsResponse(idToken, root),
+                "edgeCollider2D.getSettings" => Physics2DHandler.BuildGetEdgeCollider2DSettingsResponse(idToken, root),
+                "edgeCollider2D.setSettings" => Physics2DHandler.BuildSetEdgeCollider2DSettingsResponse(idToken, root),
+                "compositeCollider2D.getSettings" => Physics2DHandler.BuildGetCompositeCollider2DSettingsResponse(idToken, root),
+                "compositeCollider2D.setSettings" => Physics2DHandler.BuildSetCompositeCollider2DSettingsResponse(idToken, root),
+                "hingeJoint2D.getSettings" => Joints2DHandler.BuildGetHingeJoint2DSettingsResponse(idToken, root),
+                "hingeJoint2D.setSettings" => Joints2DHandler.BuildSetHingeJoint2DSettingsResponse(idToken, root),
+                "springJoint2D.getSettings" => Joints2DHandler.BuildGetSpringJoint2DSettingsResponse(idToken, root),
+                "springJoint2D.setSettings" => Joints2DHandler.BuildSetSpringJoint2DSettingsResponse(idToken, root),
+                "distanceJoint2D.getSettings" => Joints2DHandler.BuildGetDistanceJoint2DSettingsResponse(idToken, root),
+                "distanceJoint2D.setSettings" => Joints2DHandler.BuildSetDistanceJoint2DSettingsResponse(idToken, root),
+                "fixedJoint2D.getSettings" => Joints2DHandler.BuildGetFixedJoint2DSettingsResponse(idToken, root),
+                "fixedJoint2D.setSettings" => Joints2DHandler.BuildSetFixedJoint2DSettingsResponse(idToken, root),
+                "sliderJoint2D.getSettings" => Joints2DHandler.BuildGetSliderJoint2DSettingsResponse(idToken, root),
+                "sliderJoint2D.setSettings" => Joints2DHandler.BuildSetSliderJoint2DSettingsResponse(idToken, root),
+                "wheelJoint2D.getSettings" => Joints2DHandler.BuildGetWheelJoint2DSettingsResponse(idToken, root),
+                "wheelJoint2D.setSettings" => Joints2DHandler.BuildSetWheelJoint2DSettingsResponse(idToken, root),
+                "targetJoint2D.getSettings" => Joints2DHandler.BuildGetTargetJoint2DSettingsResponse(idToken, root),
+                "targetJoint2D.setSettings" => Joints2DHandler.BuildSetTargetJoint2DSettingsResponse(idToken, root),
+                "hingeJoint.getSettings" => JointsHandler.BuildGetHingeJointSettingsResponse(idToken, root),
+                "hingeJoint.setSettings" => JointsHandler.BuildSetHingeJointSettingsResponse(idToken, root),
+                "springJoint.getSettings" => JointsHandler.BuildGetSpringJointSettingsResponse(idToken, root),
+                "springJoint.setSettings" => JointsHandler.BuildSetSpringJointSettingsResponse(idToken, root),
+                "fixedJoint.getSettings" => JointsHandler.BuildGetFixedJointSettingsResponse(idToken, root),
+                "fixedJoint.setSettings" => JointsHandler.BuildSetFixedJointSettingsResponse(idToken, root),
+                "characterJoint.getSettings" => JointsHandler.BuildGetCharacterJointSettingsResponse(idToken, root),
+                "characterJoint.setSettings" => JointsHandler.BuildSetCharacterJointSettingsResponse(idToken, root),
+                "configurableJoint.getSettings" => JointsHandler.BuildGetConfigurableJointSettingsResponse(idToken, root),
+                "configurableJoint.setSettings" => JointsHandler.BuildSetConfigurableJointSettingsResponse(idToken, root),
+                "scene.getComponents" => SceneHandler.BuildGetComponentsResponse(idToken, root),
+                "scene.destroyObject" => SceneHandler.BuildDestroyObjectResponse(idToken, root),
+                "scene.getComponentProperties" => SceneHandler.BuildGetComponentPropertiesResponse(idToken, root),
+                "scene.setComponentProperties" => SceneHandler.BuildSetComponentPropertiesResponse(idToken, root),
+                "scene.setTransform" => SceneHandler.BuildSetTransformResponse(idToken, root),
+                "scene.addComponent" => SceneHandler.BuildAddComponentResponse(idToken, root),
+                "scene.setSelection" => SceneHandler.BuildSetSelectionResponse(idToken, root),
+                "scene.pingObject" => SceneHandler.BuildPingObjectResponse(idToken, root),
+                "scene.frameSelection" => SceneHandler.BuildFrameSelectionResponse(idToken),
+                "scene.frameObject" => SceneHandler.BuildFrameObjectResponse(idToken, root),
+                "scene.createGameObject" => SceneHandler.BuildCreateGameObjectResponse(idToken, root),
+                "scene.setParent" => SceneHandler.BuildSetParentResponse(idToken, root),
+                "scene.duplicateObject" => SceneHandler.BuildDuplicateObjectResponse(idToken, root),
+                "scene.renameObject" => SceneHandler.BuildRenameObjectResponse(idToken, root),
+                "scene.setActive" => SceneHandler.BuildSetActiveResponse(idToken, root),
+                "prefab.instantiate" => PrefabHandler.BuildInstantiatePrefabResponse(idToken, root),
+                "prefab.getSource" => PrefabHandler.BuildGetPrefabSourceResponse(idToken, root),
+                "prefab.applyOverrides" => PrefabHandler.BuildApplyPrefabOverridesResponse(idToken, root),
+                "prefab.revertOverrides" => PrefabHandler.BuildRevertPrefabOverridesResponse(idToken, root),
+                "scene.findByTag" => SceneHandler.BuildFindByTagResponse(idToken, root),
+                "scene.getHierarchy" => SceneHandler.BuildGetSceneHierarchyResponse(idToken, root),
+                "assets.find" => AssetsHandler.BuildFindAssetsResponse(idToken, root),
+                "assets.import" => AssetsHandler.BuildImportAssetResponse(idToken, root),
+                "assets.ping" => AssetsHandler.BuildPingAssetResponse(idToken, root),
+                "assets.reveal" => AssetsHandler.BuildRevealAssetResponse(idToken, root),
                 // Project Settings
-                "projectSettings.getPlayerSettings" => BuildGetPlayerSettingsResponse(idToken),
-                "projectSettings.setPlayerSettings" => BuildSetPlayerSettingsResponse(idToken, root),
-                "projectSettings.getQualitySettings" => BuildGetQualitySettingsResponse(idToken),
-                "projectSettings.setQualitySettings" => BuildSetQualitySettingsResponse(idToken, root),
-                "projectSettings.getPhysicsSettings" => BuildGetPhysicsSettingsResponse(idToken),
-                "projectSettings.setPhysicsSettings" => BuildSetPhysicsSettingsResponse(idToken, root),
+                "projectSettings.getPlayerSettings" => ProjectSettingsHandler.BuildGetPlayerSettingsResponse(idToken),
+                "projectSettings.setPlayerSettings" => ProjectSettingsHandler.BuildSetPlayerSettingsResponse(idToken, root),
+                "projectSettings.getQualitySettings" => ProjectSettingsHandler.BuildGetQualitySettingsResponse(idToken),
+                "projectSettings.setQualitySettings" => ProjectSettingsHandler.BuildSetQualitySettingsResponse(idToken, root),
+                "projectSettings.getPhysicsSettings" => ProjectSettingsHandler.BuildGetPhysicsSettingsResponse(idToken),
+                "projectSettings.setPhysicsSettings" => ProjectSettingsHandler.BuildSetPhysicsSettingsResponse(idToken, root),
                 // Physics2D Settings
-                "physics2D.getSettings" => BuildGetPhysics2DSettingsResponse(idToken),
-                "physics2D.setSettings" => BuildSetPhysics2DSettingsResponse(idToken, root),
+                "physics2D.getSettings" => Physics2DHandler.BuildGetPhysics2DSettingsResponse(idToken),
+                "physics2D.setSettings" => Physics2DHandler.BuildSetPhysics2DSettingsResponse(idToken, root),
                 // Screenshot Capture
-                "editor.captureSceneView" => BuildCaptureSceneViewResponse(idToken, root),
-                "editor.captureGameView" => BuildCaptureGameViewResponse(idToken, root),
+                "editor.captureSceneView" => EditorHandler.BuildCaptureSceneViewResponse(idToken, root),
+                "editor.captureGameView" => EditorHandler.BuildCaptureGameViewResponse(idToken, root),
                 // Editor utility
-                "editor.clearConsole" => BuildClearConsoleResponse(idToken),
-                "editor.pausePlayMode" => BuildPausePlayModeResponse(idToken, root),
-                "editor.undo" => BuildUndoResponse(idToken),
-                "editor.redo" => BuildRedoResponse(idToken),
-                "editor.getTags" => BuildGetTagsResponse(idToken),
-                "editor.getLayers" => BuildGetLayersResponse(idToken),
+                "editor.clearConsole" => EditorHandler.BuildClearConsoleResponse(idToken),
+                "editor.pausePlayMode" => EditorHandler.BuildPausePlayModeResponse(idToken, root),
+                "editor.undo" => EditorHandler.BuildUndoResponse(idToken),
+                "editor.redo" => EditorHandler.BuildRedoResponse(idToken),
+                "editor.getTags" => EditorHandler.BuildGetTagsResponse(idToken),
+                "editor.getLayers" => EditorHandler.BuildGetLayersResponse(idToken),
                 // Scene tag / layer
-                "scene.setTag" => BuildSetTagResponse(idToken, root),
-                "scene.setLayer" => BuildSetLayerResponse(idToken, root),
+                "scene.setTag" => SceneHandler.BuildSetTagResponse(idToken, root),
+                "scene.setLayer" => SceneHandler.BuildSetLayerResponse(idToken, root),
                 // Scene management
-                "scene.save" => BuildSaveSceneResponse(idToken, root),
-                "scene.openScene" => BuildOpenSceneResponse(idToken, root),
-                "scene.newScene" => BuildNewSceneResponse(idToken, root),
-                "scene.closeScene" => BuildCloseSceneResponse(idToken, root),
-                "scene.setActiveScene" => BuildSetActiveSceneResponse(idToken, root),
+                "scene.save" => SceneHandler.BuildSaveSceneResponse(idToken, root),
+                "scene.openScene" => SceneHandler.BuildOpenSceneResponse(idToken, root),
+                "scene.newScene" => SceneHandler.BuildNewSceneResponse(idToken, root),
+                "scene.closeScene" => SceneHandler.BuildCloseSceneResponse(idToken, root),
+                "scene.setActiveScene" => SceneHandler.BuildSetActiveSceneResponse(idToken, root),
                 // Asset creation / management
-                "assets.createFolder" => BuildCreateFolderResponse(idToken, root),
-                "assets.createScript" => BuildCreateScriptResponse(idToken, root),
-                "assets.createMaterial" => BuildCreateMaterialResponse(idToken, root),
-                "assets.createPrefab" => BuildCreatePrefabResponse(idToken, root),
-                "assets.delete" => BuildDeleteAssetResponse(idToken, root),
-                "assets.move" => BuildMoveAssetResponse(idToken, root),
+                "assets.createFolder" => AssetsHandler.BuildCreateFolderResponse(idToken, root),
+                "assets.createScript" => AssetsHandler.BuildCreateScriptResponse(idToken, root),
+                "assets.createMaterial" => AssetsHandler.BuildCreateMaterialResponse(idToken, root),
+                "assets.createPrefab" => AssetsHandler.BuildCreatePrefabResponse(idToken, root),
+                "assets.delete" => AssetsHandler.BuildDeleteAssetResponse(idToken, root),
+                "assets.move" => AssetsHandler.BuildMoveAssetResponse(idToken, root),
                 // Animator
-                "animator.getSettings" => BuildGetAnimatorSettingsResponse(idToken, root),
-                "animator.setSettings" => BuildSetAnimatorSettingsResponse(idToken, root),
-                "animator.getParameters" => BuildGetAnimatorParametersResponse(idToken, root),
-                "animator.setParameter" => BuildSetAnimatorParameterResponse(idToken, root),
+                "animator.getSettings" => AnimatorHandler.BuildGetAnimatorSettingsResponse(idToken, root),
+                "animator.setSettings" => AnimatorHandler.BuildSetAnimatorSettingsResponse(idToken, root),
+                "animator.getParameters" => AnimatorHandler.BuildGetAnimatorParametersResponse(idToken, root),
+                "animator.setParameter" => AnimatorHandler.BuildSetAnimatorParameterResponse(idToken, root),
                 // MeshRenderer
-                "meshRenderer.getSettings" => BuildGetMeshRendererSettingsResponse(idToken, root),
-                "meshRenderer.setSettings" => BuildSetMeshRendererSettingsResponse(idToken, root),
+                "meshRenderer.getSettings" => RenderersHandler.BuildGetMeshRendererSettingsResponse(idToken, root),
+                "meshRenderer.setSettings" => RenderersHandler.BuildSetMeshRendererSettingsResponse(idToken, root),
                 // AudioSource
-                "audioSource.getSettings" => BuildGetAudioSourceSettingsResponse(idToken, root),
-                "audioSource.setSettings" => BuildSetAudioSourceSettingsResponse(idToken, root),
+                "audioSource.getSettings" => AudioHandler.BuildGetAudioSourceSettingsResponse(idToken, root),
+                "audioSource.setSettings" => AudioHandler.BuildSetAudioSourceSettingsResponse(idToken, root),
                 // CharacterController
-                "characterController.getSettings" => BuildGetCharacterControllerSettingsResponse(idToken, root),
-                "characterController.setSettings" => BuildSetCharacterControllerSettingsResponse(idToken, root),
+                "characterController.getSettings" => PhysicsHandler.BuildGetCharacterControllerSettingsResponse(idToken, root),
+                "characterController.setSettings" => PhysicsHandler.BuildSetCharacterControllerSettingsResponse(idToken, root),
                 // ParticleSystem
-                "particleSystem.getSettings" => BuildGetParticleSystemSettingsResponse(idToken, root),
-                "particleSystem.setSettings" => BuildSetParticleSystemSettingsResponse(idToken, root),
-                "particleSystem.play" => BuildParticleSystemPlayResponse(idToken, root),
-                "particleSystem.stop" => BuildParticleSystemStopResponse(idToken, root),
+                "particleSystem.getSettings" => ParticleSystemHandler.BuildGetParticleSystemSettingsResponse(idToken, root),
+                "particleSystem.setSettings" => ParticleSystemHandler.BuildSetParticleSystemSettingsResponse(idToken, root),
+                "particleSystem.play" => ParticleSystemHandler.BuildParticleSystemPlayResponse(idToken, root),
+                "particleSystem.stop" => ParticleSystemHandler.BuildParticleSystemStopResponse(idToken, root),
                 // NavMeshAgent
-                "navMeshAgent.getSettings" => BuildGetNavMeshAgentSettingsResponse(idToken, root),
-                "navMeshAgent.setSettings" => BuildSetNavMeshAgentSettingsResponse(idToken, root),
+                "navMeshAgent.getSettings" => NavMeshHandler.BuildGetNavMeshAgentSettingsResponse(idToken, root),
+                "navMeshAgent.setSettings" => NavMeshHandler.BuildSetNavMeshAgentSettingsResponse(idToken, root),
                 // NavMeshObstacle
-                "navMeshObstacle.getSettings" => BuildGetNavMeshObstacleSettingsResponse(idToken, root),
-                "navMeshObstacle.setSettings" => BuildSetNavMeshObstacleSettingsResponse(idToken, root),
+                "navMeshObstacle.getSettings" => NavMeshHandler.BuildGetNavMeshObstacleSettingsResponse(idToken, root),
+                "navMeshObstacle.setSettings" => NavMeshHandler.BuildSetNavMeshObstacleSettingsResponse(idToken, root),
                 // RectTransform
-                "rectTransform.getSettings" => BuildGetRectTransformSettingsResponse(idToken, root),
-                "rectTransform.setSettings" => BuildSetRectTransformSettingsResponse(idToken, root),
+                "rectTransform.getSettings" => UIHandler.BuildGetRectTransformSettingsResponse(idToken, root),
+                "rectTransform.setSettings" => UIHandler.BuildSetRectTransformSettingsResponse(idToken, root),
                 // Canvas
-                "canvas.getSettings" => BuildGetCanvasSettingsResponse(idToken, root),
-                "canvas.setSettings" => BuildSetCanvasSettingsResponse(idToken, root),
+                "canvas.getSettings" => UIHandler.BuildGetCanvasSettingsResponse(idToken, root),
+                "canvas.setSettings" => UIHandler.BuildSetCanvasSettingsResponse(idToken, root),
                 // SkinnedMeshRenderer
-                "skinnedMeshRenderer.getSettings" => BuildGetSkinnedMeshRendererSettingsResponse(idToken, root),
-                "skinnedMeshRenderer.setSettings" => BuildSetSkinnedMeshRendererSettingsResponse(idToken, root),
+                "skinnedMeshRenderer.getSettings" => RenderersHandler.BuildGetSkinnedMeshRendererSettingsResponse(idToken, root),
+                "skinnedMeshRenderer.setSettings" => RenderersHandler.BuildSetSkinnedMeshRendererSettingsResponse(idToken, root),
                 // ScriptableObject
-                "assets.createScriptableObject" => BuildCreateScriptableObjectResponse(idToken, root),
+                "assets.createScriptableObject" => AssetsHandler.BuildCreateScriptableObjectResponse(idToken, root),
                 // Batch 3: NavMesh
-                "navMesh.bake" => BuildNavMeshBakeResponse(idToken),
+                "navMesh.bake" => NavMeshHandler.BuildNavMeshBakeResponse(idToken),
                 // Batch 3: Terrain
-                "terrain.getSettings" => BuildGetTerrainSettingsResponse(idToken, root),
-                "terrain.setSettings" => BuildSetTerrainSettingsResponse(idToken, root),
+                "terrain.getSettings" => TerrainHandler.BuildGetTerrainSettingsResponse(idToken, root),
+                "terrain.setSettings" => TerrainHandler.BuildSetTerrainSettingsResponse(idToken, root),
                 // Batch 3: Build Pipeline
-                "build.getSettings" => BuildGetBuildSettingsResponse(idToken),
-                "build.setSettings" => BuildSetBuildSettingsResponse(idToken, root),
-                "build.build" => BuildBuildResponse(idToken, root),
+                "build.getSettings" => BuildHandler.BuildGetBuildSettingsResponse(idToken),
+                "build.setSettings" => BuildHandler.BuildSetBuildSettingsResponse(idToken, root),
+                "build.build" => BuildHandler.BuildBuildResponse(idToken, root),
                 // Batch 3: Tags & Layers Management
-                "editor.addTag" => BuildAddTagResponse(idToken, root),
-                "editor.removeTag" => BuildRemoveTagResponse(idToken, root),
-                "editor.addLayer" => BuildAddLayerResponse(idToken, root),
-                "editor.removeLayer" => BuildRemoveLayerResponse(idToken, root),
+                "editor.addTag" => EditorHandler.BuildAddTagResponse(idToken, root),
+                "editor.removeTag" => EditorHandler.BuildRemoveTagResponse(idToken, root),
+                "editor.addLayer" => EditorHandler.BuildAddLayerResponse(idToken, root),
+                "editor.removeLayer" => EditorHandler.BuildRemoveLayerResponse(idToken, root),
                 // Batch 3: Selection Utilities
-                "scene.getSelectionDetails" => BuildGetSelectionDetailsResponse(idToken),
-                "scene.selectByName" => BuildSelectByNameResponse(idToken, root),
+                "scene.getSelectionDetails" => SceneHandler.BuildGetSelectionDetailsResponse(idToken),
+                "scene.selectByName" => SceneHandler.BuildSelectByNameResponse(idToken, root),
                 // Batch 3: Undo History
-                "editor.getUndoHistory" => BuildGetUndoHistoryResponse(idToken),
+                "editor.getUndoHistory" => EditorHandler.BuildGetUndoHistoryResponse(idToken),
                 // Batch 4: Camera Projection
-                "camera.getProjection" => BuildGetCameraProjectionResponse(idToken, root),
-                "camera.setProjection" => BuildSetCameraProjectionResponse(idToken, root),
+                "camera.getProjection" => CameraHandler.BuildGetCameraProjectionResponse(idToken, root),
+                "camera.setProjection" => CameraHandler.BuildSetCameraProjectionResponse(idToken, root),
                 // Batch 4: SpriteRenderer
-                "spriteRenderer.getSettings" => BuildGetSpriteRendererSettingsResponse(idToken, root),
-                "spriteRenderer.setSettings" => BuildSetSpriteRendererSettingsResponse(idToken, root),
+                "spriteRenderer.getSettings" => RenderersHandler.BuildGetSpriteRendererSettingsResponse(idToken, root),
+                "spriteRenderer.setSettings" => RenderersHandler.BuildSetSpriteRendererSettingsResponse(idToken, root),
                 // Batch 4: LineRenderer
-                "lineRenderer.getSettings" => BuildGetLineRendererSettingsResponse(idToken, root),
-                "lineRenderer.setSettings" => BuildSetLineRendererSettingsResponse(idToken, root),
+                "lineRenderer.getSettings" => RenderersHandler.BuildGetLineRendererSettingsResponse(idToken, root),
+                "lineRenderer.setSettings" => RenderersHandler.BuildSetLineRendererSettingsResponse(idToken, root),
                 // Batch 4: LODGroup
-                "lodGroup.getSettings" => BuildGetLODGroupSettingsResponse(idToken, root),
-                "lodGroup.setSettings" => BuildSetLODGroupSettingsResponse(idToken, root),
+                "lodGroup.getSettings" => RenderersHandler.BuildGetLODGroupSettingsResponse(idToken, root),
+                "lodGroup.setSettings" => RenderersHandler.BuildSetLODGroupSettingsResponse(idToken, root),
                 // Batch 4: CanvasGroup
-                "canvasGroup.getSettings" => BuildGetCanvasGroupSettingsResponse(idToken, root),
-                "canvasGroup.setSettings" => BuildSetCanvasGroupSettingsResponse(idToken, root),
+                "canvasGroup.getSettings" => UIHandler.BuildGetCanvasGroupSettingsResponse(idToken, root),
+                "canvasGroup.setSettings" => UIHandler.BuildSetCanvasGroupSettingsResponse(idToken, root),
                 // Batch 4: Editor Recompile
-                "editor.recompileScripts" => BuildRecompileScriptsResponse(idToken),
+                "editor.recompileScripts" => EditorHandler.BuildRecompileScriptsResponse(idToken),
                 // Batch 4: Scene Instantiate Prefab
-                "scene.instantiatePrefab" => BuildSceneInstantiatePrefabResponse(idToken, root),
+                "scene.instantiatePrefab" => SceneHandler.BuildSceneInstantiatePrefabResponse(idToken, root),
                 // Batch 5: Physics Queries
-                "physics.raycast" => BuildPhysicsRaycastResponse(idToken, root),
-                "physics.overlapSphere" => BuildPhysicsOverlapSphereResponse(idToken, root),
+                "physics.raycast" => PhysicsHandler.BuildPhysicsRaycastResponse(idToken, root),
+                "physics.overlapSphere" => PhysicsHandler.BuildPhysicsOverlapSphereResponse(idToken, root),
                 // Batch 5: Time
-                "time.getSettings" => BuildGetTimeSettingsResponse(idToken),
-                "time.setSettings" => BuildSetTimeSettingsResponse(idToken, root),
+                "time.getSettings" => TimeHandler.BuildGetTimeSettingsResponse(idToken),
+                "time.setSettings" => TimeHandler.BuildSetTimeSettingsResponse(idToken, root),
                 // Batch 5: Joint (base 3D)
-                "joint.getSettings" => BuildGetJointSettingsResponse(idToken, root),
-                "joint.setSettings" => BuildSetJointSettingsResponse(idToken, root),
+                "joint.getSettings" => JointsHandler.BuildGetJointSettingsResponse(idToken, root),
+                "joint.setSettings" => JointsHandler.BuildSetJointSettingsResponse(idToken, root),
                 // Batch 5: Renderer
-                "renderer.getMaterials" => BuildGetRendererMaterialsResponse(idToken, root),
-                "renderer.setMaterial" => BuildSetRendererMaterialResponse(idToken, root),
+                "renderer.getMaterials" => RenderersHandler.BuildGetRendererMaterialsResponse(idToken, root),
+                "renderer.setMaterial" => RenderersHandler.BuildSetRendererMaterialResponse(idToken, root),
 
-                "audio.getSourceSettings" => BuildAudioSourceGetSettingsResponse(idToken, root),
-                "audio.setSourceSettings" => BuildAudioSourceSetSettingsResponse(idToken, root),
-                "audio.play"             => BuildAudioPlayResponse(idToken, root),
-                "audio.stop"             => BuildAudioStopResponse(idToken, root),
-                "audio.pause"            => BuildAudioPauseResponse(idToken, root),
-                "audio.unpause"          => BuildAudioUnpauseResponse(idToken, root),
-                "audio.getIsPlaying"     => BuildGetAudioIsPlayingResponse(idToken, root),
-                "audio.getMixerSettings" => BuildGetAudioMixerSettingsResponse(idToken, root),
-                "audio.setMixerParameter" => BuildSetAudioMixerParameterResponse(idToken, root),
-                "audio.getListenerSettings" => BuildGetAudioListenerSettingsResponse(idToken, root),
-                "audio.setListenerSettings" => BuildSetAudioListenerSettingsResponse(idToken, root),
+                "audio.getSourceSettings" => AudioHandler.BuildAudioSourceGetSettingsResponse(idToken, root),
+                "audio.setSourceSettings" => AudioHandler.BuildAudioSourceSetSettingsResponse(idToken, root),
+                "audio.play"             => AudioHandler.BuildAudioPlayResponse(idToken, root),
+                "audio.stop"             => AudioHandler.BuildAudioStopResponse(idToken, root),
+                "audio.pause"            => AudioHandler.BuildAudioPauseResponse(idToken, root),
+                "audio.unpause"          => AudioHandler.BuildAudioUnpauseResponse(idToken, root),
+                "audio.getIsPlaying"     => AudioHandler.BuildGetAudioIsPlayingResponse(idToken, root),
+                "audio.getMixerSettings" => AudioHandler.BuildGetAudioMixerSettingsResponse(idToken, root),
+                "audio.setMixerParameter" => AudioHandler.BuildSetAudioMixerParameterResponse(idToken, root),
+                "audio.getListenerSettings" => AudioHandler.BuildGetAudioListenerSettingsResponse(idToken, root),
+                "audio.setListenerSettings" => AudioHandler.BuildSetAudioListenerSettingsResponse(idToken, root),
                 // Batch 7: Test Runner
-                "testRunner.listTests" => BuildListTestsResponse(idToken, root),
-                "testRunner.run" => BuildRunTestsResponse(idToken, root),
-                "testRunner.getResults" => BuildGetTestResultsResponse(idToken),
-                "testRunner.cancel" => BuildCancelTestRunResponse(idToken),
+                "testRunner.listTests" => TestRunnerHandler.BuildListTestsResponse(idToken, root),
+                "testRunner.run" => TestRunnerHandler.BuildRunTestsResponse(idToken, root),
+                "testRunner.getResults" => TestRunnerHandler.BuildGetTestResultsResponse(idToken),
+                "testRunner.cancel" => TestRunnerHandler.BuildCancelTestRunResponse(idToken),
                 // Batch 8: Material/Shader Properties
-                "material.getProperties" => BuildGetMaterialPropertiesResponse(idToken, root),
-                "material.getProperty" => BuildGetMaterialPropertyResponse(idToken, root),
-                "material.setProperty" => BuildSetMaterialPropertyResponse(idToken, root),
-                "material.getKeywords" => BuildGetMaterialKeywordsResponse(idToken, root),
-                "material.setKeyword" => BuildSetMaterialKeywordResponse(idToken, root),
-                "material.getShader" => BuildGetMaterialShaderResponse(idToken, root),
-                "material.setShader" => BuildSetMaterialShaderResponse(idToken, root),
-                "material.getRenderQueue" => BuildGetMaterialRenderQueueResponse(idToken, root),
-                "material.setRenderQueue" => BuildSetMaterialRenderQueueResponse(idToken, root),
+                "material.getProperties" => MaterialHandler.BuildGetMaterialPropertiesResponse(idToken, root),
+                "material.getProperty" => MaterialHandler.BuildGetMaterialPropertyResponse(idToken, root),
+                "material.setProperty" => MaterialHandler.BuildSetMaterialPropertyResponse(idToken, root),
+                "material.getKeywords" => MaterialHandler.BuildGetMaterialKeywordsResponse(idToken, root),
+                "material.setKeyword" => MaterialHandler.BuildSetMaterialKeywordResponse(idToken, root),
+                "material.getShader" => MaterialHandler.BuildGetMaterialShaderResponse(idToken, root),
+                "material.setShader" => MaterialHandler.BuildSetMaterialShaderResponse(idToken, root),
+                "material.getRenderQueue" => MaterialHandler.BuildGetMaterialRenderQueueResponse(idToken, root),
+                "material.setRenderQueue" => MaterialHandler.BuildSetMaterialRenderQueueResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
@@ -4697,125 +4696,8 @@ internal sealed class UnityMcpClient : IDisposable
         return UnityMcpProtocol.CreateResult(idToken, result);
     }
 
-    private static string BuildInstantiatePrefabResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "prefab.instantiate");
-        var assetPath = NormalizeAndValidateAssetPath(ParseRequiredStringParameter(paramsObject, "assetPath"));
-        var parentInstanceId = ParseOptionalNullableIntegerParameter(paramsObject, "parentInstanceId");
-        var position = ParseOptionalVector3Parameter(paramsObject, "position");
-        var rotationEuler = ParseOptionalVector3Parameter(paramsObject, "rotationEuler");
-        var select = ParseOptionalBooleanParameter(paramsObject, "select", true);
-        var ping = ParseOptionalBooleanParameter(paramsObject, "ping");
-        var focus = ParseOptionalBooleanParameter(paramsObject, "focus");
 
-        var prefabAsset = LoadPrefabAsset(assetPath);
-        var activeScene = SceneManager.GetActiveScene();
-        if (!activeScene.IsValid() || !activeScene.isLoaded)
-        {
-            throw new InvalidOperationException("No active loaded scene is available for prefab instantiation.");
-        }
 
-        GameObject? parentGameObject = null;
-        if (parentInstanceId.IsSpecified && parentInstanceId.HasValue)
-        {
-            var resolvedParentObject = ResolveObjectByInstanceId(parentInstanceId.Value!.Value, "parentInstanceId");
-            parentGameObject = ResolveSceneGameObjectTarget(resolvedParentObject, "parentInstanceId");
-            if (parentGameObject.scene != activeScene)
-            {
-                throw new ArgumentException("Cross-scene parenting is not supported in the MVP. Parent must be in the active loaded scene.");
-            }
-        }
-
-        var instanceObject = PrefabUtility.InstantiatePrefab(prefabAsset, activeScene);
-        if (instanceObject is not GameObject instance)
-        {
-            throw new InvalidOperationException($"Unity did not return a GameObject when instantiating prefab '{assetPath}'.");
-        }
-
-        Undo.RegisterCreatedObjectUndo(instance, "UnityMCP Instantiate Prefab");
-
-        if (parentGameObject != null)
-        {
-            Undo.SetTransformParent(instance.transform, parentGameObject.transform, "UnityMCP Instantiate Prefab");
-        }
-
-        if (position.HasValue || rotationEuler.HasValue)
-        {
-            Undo.RecordObject(instance.transform, "UnityMCP Instantiate Prefab");
-            if (position.HasValue)
-            {
-                instance.transform.position = position.Value;
-            }
-
-            if (rotationEuler.HasValue)
-            {
-                instance.transform.rotation = Quaternion.Euler(rotationEuler.Value);
-            }
-        }
-
-        if (select)
-        {
-            Selection.activeGameObject = instance;
-            ApplySelectionEditorPresentation(instance, ping, focus);
-        }
-        else
-        {
-            ApplySceneObjectPresentationWithoutSelection(instance, ping, focus);
-        }
-
-        var result = new
-        {
-            instance = CreateObjectSummary(instance),
-            prefabSource = CreatePrefabAssetSummary(prefabAsset, instance),
-            selection = BuildSelectionSummaryResult(),
-            applied = new
-            {
-                parent = parentGameObject != null,
-                position = position.HasValue,
-                rotationEuler = rotationEuler.HasValue,
-                selected = select,
-                ping,
-                focus
-            }
-        };
-
-        return UnityMcpProtocol.CreateResult(idToken, result);
-    }
-
-    private static string BuildGetPrefabSourceResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "prefab.getSource");
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
-        var targetGameObject = ResolveSceneGameObjectTarget(resolvedObject, "instanceId");
-
-        var prefabDetails = InspectPrefabInstance(targetGameObject, "instanceId");
-
-        var result = new
-        {
-            target = CreateObjectSummary(targetGameObject),
-            prefabInstanceStatus = prefabDetails.PrefabInstanceStatus,
-            prefabAssetType = prefabDetails.PrefabAssetType,
-            instanceRoot = CreateObjectSummary(prefabDetails.OutermostPrefabInstanceRoot),
-            sourceAsset = CreatePrefabAssetSummary(prefabDetails.SourceAsset, prefabDetails.OutermostPrefabInstanceRoot),
-            nearestPrefabInstanceRoot = CreateObjectSummary(prefabDetails.NearestPrefabInstanceRoot),
-            isOutermostPrefabInstanceRoot = prefabDetails.IsOutermostPrefabInstanceRoot
-        };
-
-        return UnityMcpProtocol.CreateResult(idToken, result);
-    }
-
-    private static string BuildApplyPrefabOverridesResponse(JToken idToken, JObject root)
-    {
-        var result = ApplyPrefabOverrides(root, "prefab.applyOverrides", revert: false);
-        return UnityMcpProtocol.CreateResult(idToken, result);
-    }
-
-    private static string BuildRevertPrefabOverridesResponse(JToken idToken, JObject root)
-    {
-        var result = ApplyPrefabOverrides(root, "prefab.revertOverrides", revert: true);
-        return UnityMcpProtocol.CreateResult(idToken, result);
-    }
 
     private static string BuildFindByTagResponse(JToken idToken, JObject root)
     {
@@ -5749,114 +5631,6 @@ internal sealed class UnityMcpClient : IDisposable
 
     // ── ParticleSystem ──────────────────────────────────────────────────
 
-    private static string BuildGetParticleSystemSettingsResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "particleSystem.getSettings");
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.getSettings");
-
-        var main = ps.main;
-        var emission = ps.emission;
-        var settings = new
-        {
-            duration = main.duration,
-            loop = main.loop,
-            prewarm = main.prewarm,
-            startDelay = main.startDelay.constant,
-            startLifetime = main.startLifetime.constant,
-            startSpeed = main.startSpeed.constant,
-            startSize = main.startSize.constant,
-            maxParticles = main.maxParticles,
-            playOnAwake = main.playOnAwake,
-            emissionRate = emission.rateOverTime.constant,
-            isPlaying = ps.isPlaying,
-            isPaused = ps.isPaused,
-            isStopped = ps.isStopped,
-            particleCount = ps.particleCount
-        };
-
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            target = CreateObjectSummary(ownerGo),
-            component = CreateObjectSummary(ps),
-            settings
-        });
-    }
-
-    private static string BuildSetParticleSystemSettingsResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "particleSystem.setSettings");
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.setSettings");
-
-        Undo.RecordObject(ps, "Set ParticleSystem Settings");
-        var applied = new System.Collections.Generic.List<string>();
-
-        var main = ps.main;
-        var emission = ps.emission;
-
-        if (TryGetFloat(paramsObject, "duration", out var duration))
-        { main.duration = duration; applied.Add("duration"); }
-        if (paramsObject.TryGetValue("loop", out var loopToken) && loopToken.Type == JTokenType.Boolean)
-        { main.loop = loopToken.Value<bool>(); applied.Add("loop"); }
-        if (paramsObject.TryGetValue("prewarm", out var prewarmToken) && prewarmToken.Type == JTokenType.Boolean)
-        { main.prewarm = prewarmToken.Value<bool>(); applied.Add("prewarm"); }
-        if (TryGetFloat(paramsObject, "startDelay", out var startDelay))
-        { main.startDelay = startDelay; applied.Add("startDelay"); }
-        if (TryGetFloat(paramsObject, "startLifetime", out var startLifetime))
-        { main.startLifetime = startLifetime; applied.Add("startLifetime"); }
-        if (TryGetFloat(paramsObject, "startSpeed", out var startSpeed))
-        { main.startSpeed = startSpeed; applied.Add("startSpeed"); }
-        if (TryGetFloat(paramsObject, "startSize", out var startSize))
-        { main.startSize = startSize; applied.Add("startSize"); }
-        if (paramsObject.TryGetValue("maxParticles", out var maxP) && maxP.Type == JTokenType.Integer)
-        { main.maxParticles = maxP.Value<int>(); applied.Add("maxParticles"); }
-        if (paramsObject.TryGetValue("playOnAwake", out var poa) && poa.Type == JTokenType.Boolean)
-        { main.playOnAwake = poa.Value<bool>(); applied.Add("playOnAwake"); }
-        if (TryGetFloat(paramsObject, "emissionRate", out var emRate))
-        { emission.rateOverTime = emRate; applied.Add("emissionRate"); }
-
-        EditorUtility.SetDirty(ps);
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            target = CreateObjectSummary(ownerGo),
-            component = CreateObjectSummary(ps),
-            applied
-        });
-    }
-
-    private static string BuildParticleSystemPlayResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "particleSystem.play");
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.play");
-
-        ps.Play();
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            target = CreateObjectSummary(ownerGo),
-            component = CreateObjectSummary(ps),
-            isPlaying = ps.isPlaying,
-            particleCount = ps.particleCount
-        });
-    }
-
-    private static string BuildParticleSystemStopResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "particleSystem.stop");
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var (ps, ownerGo) = ResolveComponentFromInstanceId<ParticleSystem>(instanceId, "particleSystem.stop");
-
-        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            target = CreateObjectSummary(ownerGo),
-            component = CreateObjectSummary(ps),
-            isPlaying = ps.isPlaying,
-            isStopped = ps.isStopped,
-            particleCount = ps.particleCount
-        });
-    }
 
     // ── NavMeshAgent ────────────────────────────────────────────────────
 
@@ -6348,84 +6122,6 @@ internal sealed class UnityMcpClient : IDisposable
         });
     }
 
-    // ── Batch 3: Build Pipeline ─────────────────────────────────────────
-
-    private static string BuildGetBuildSettingsResponse(JToken idToken)
-    {
-        var scenes = EditorBuildSettings.scenes;
-        var sceneList = new List<object>(scenes.Length);
-        foreach (var scene in scenes)
-        {
-            sceneList.Add(new
-            {
-                path = scene.path,
-                enabled = scene.enabled,
-                guid = scene.guid.ToString()
-            });
-        }
-
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            scenes = sceneList,
-            activeBuildTarget = EditorUserBuildSettings.activeBuildTarget.ToString(),
-            developmentBuild = EditorUserBuildSettings.development,
-            buildOutputPath = EditorUserBuildSettings.GetBuildLocation(EditorUserBuildSettings.activeBuildTarget)
-        });
-    }
-
-    private static string BuildSetBuildSettingsResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "build.setSettings");
-
-        if (paramsObject.TryGetValue("developmentBuild", out var devToken) && devToken.Type == JTokenType.Boolean)
-            EditorUserBuildSettings.development = devToken.Value<bool>();
-
-        if (paramsObject.TryGetValue("outputPath", out var opToken) && opToken.Type == JTokenType.String)
-            EditorUserBuildSettings.SetBuildLocation(EditorUserBuildSettings.activeBuildTarget, opToken.Value<string>()!);
-
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            developmentBuild = EditorUserBuildSettings.development,
-            buildOutputPath = EditorUserBuildSettings.GetBuildLocation(EditorUserBuildSettings.activeBuildTarget),
-            applied = true
-        });
-    }
-
-    private static string BuildBuildResponse(JToken idToken, JObject root)
-    {
-        var paramsObject = RequireParamsObject(root, "build.build");
-        var outputPath = ParseRequiredStringParameter(paramsObject, "outputPath");
-
-        var scenes = EditorBuildSettings.scenes;
-        var enabledScenes = new List<string>();
-        foreach (var scene in scenes)
-        {
-            if (scene.enabled)
-                enabledScenes.Add(scene.path);
-        }
-
-        if (enabledScenes.Count == 0)
-            throw new ArgumentException("No enabled scenes in build settings.");
-
-        var options = EditorUserBuildSettings.development
-            ? BuildOptions.Development
-            : BuildOptions.None;
-
-        var report = BuildPipeline.BuildPlayer(
-            enabledScenes.ToArray(),
-            outputPath,
-            EditorUserBuildSettings.activeBuildTarget,
-            options);
-
-        return UnityMcpProtocol.CreateResult(idToken, new
-        {
-            summary = report.summary.result.ToString(),
-            totalErrors = report.summary.totalErrors,
-            totalWarnings = report.summary.totalWarnings,
-            totalTime = report.summary.totalTime.TotalSeconds,
-            outputPath = report.summary.outputPath
-        });
-    }
 
     // ── Batch 3: Tags & Layers Management ───────────────────────────────
 
@@ -8521,60 +8217,7 @@ internal sealed class UnityMcpClient : IDisposable
         };
     }
 
-    private static GameObject LoadPrefabAsset(string assetPath)
-    {
-        var prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-        if (prefabAsset == null || !PrefabUtility.IsPartOfPrefabAsset(prefabAsset))
-        {
-            throw new ArgumentException($"Asset path '{assetPath}' does not point to a prefab asset.");
-        }
 
-        return prefabAsset;
-    }
-
-    private static PrefabInstanceDetails InspectPrefabInstance(GameObject targetGameObject, string parameterName)
-    {
-        var prefabInstanceStatus = PrefabUtility.GetPrefabInstanceStatus(targetGameObject);
-        if (prefabInstanceStatus == PrefabInstanceStatus.NotAPrefab)
-        {
-            throw new ArgumentException($"Parameter '{parameterName}' must reference an object that is part of a prefab instance.");
-        }
-
-        var nearestPrefabInstanceRoot = PrefabUtility.GetNearestPrefabInstanceRoot(targetGameObject);
-        var outermostPrefabInstanceRoot = PrefabUtility.GetOutermostPrefabInstanceRoot(targetGameObject);
-        if (nearestPrefabInstanceRoot == null || outermostPrefabInstanceRoot == null)
-        {
-            throw new ArgumentException($"Parameter '{parameterName}' must reference an object that is part of a prefab instance.");
-        }
-
-        var assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(targetGameObject);
-        if (string.IsNullOrWhiteSpace(assetPath))
-        {
-            throw new ArgumentException($"Parameter '{parameterName}' does not resolve to a prefab source asset.");
-        }
-
-        var sourceAsset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-        if (sourceAsset == null)
-        {
-            throw new ArgumentException($"Prefab source asset '{assetPath}' could not be loaded.");
-        }
-
-        var guid = AssetDatabase.AssetPathToGUID(assetPath);
-        if (string.IsNullOrWhiteSpace(guid))
-        {
-            throw new ArgumentException($"Prefab source asset '{assetPath}' does not have a valid GUID.");
-        }
-
-        return new PrefabInstanceDetails(
-            targetGameObject,
-            nearestPrefabInstanceRoot,
-            outermostPrefabInstanceRoot,
-            sourceAsset,
-            assetPath,
-            guid,
-            prefabInstanceStatus.ToString(),
-            PrefabUtility.GetPrefabAssetType(targetGameObject).ToString());
-    }
 
     private static GameObject? TryGetSceneFrameTarget(UnityEngine.Object targetObject)
     {
@@ -9289,133 +8932,9 @@ internal sealed class UnityMcpClient : IDisposable
         return Path.Combine(projectRoot, relativePath);
     }
 
-    private static object ApplyPrefabOverrides(JObject root, string methodName, bool revert)
-    {
-        var paramsObject = RequireParamsObject(root, methodName);
-        var instanceId = ParseRequiredIntegerParameter(paramsObject, "instanceId");
-        var scope = ParseOptionalPrefabOverrideScopeParameter(paramsObject, "scope");
-        var componentInstanceId = ParseOptionalIntegerParameter(paramsObject, "componentInstanceId");
 
-        var resolvedObject = ResolveObjectByInstanceId(instanceId, "instanceId");
-        var targetGameObject = ResolveSceneGameObjectTarget(resolvedObject, "instanceId");
-        var prefabDetails = InspectPrefabInstance(targetGameObject, "instanceId");
 
-        Component? componentTarget = null;
-        switch (scope)
-        {
-            case PrefabOverrideScope.InstanceRoot:
-                if (revert)
-                {
-                    PrefabUtility.RevertPrefabInstance(prefabDetails.OutermostPrefabInstanceRoot, InteractionMode.UserAction);
-                }
-                else
-                {
-                    PrefabUtility.ApplyPrefabInstance(prefabDetails.OutermostPrefabInstanceRoot, InteractionMode.UserAction);
-                }
 
-                break;
-
-            case PrefabOverrideScope.Object:
-                if (revert)
-                {
-                    PrefabUtility.RevertObjectOverride(targetGameObject, InteractionMode.UserAction);
-                }
-                else
-                {
-                    PrefabUtility.ApplyObjectOverride(targetGameObject, prefabDetails.AssetPath, InteractionMode.UserAction);
-                }
-
-                break;
-
-            case PrefabOverrideScope.Component:
-                componentTarget = ResolvePrefabOverrideComponentTarget(resolvedObject, targetGameObject, componentInstanceId);
-                if (revert)
-                {
-                    PrefabUtility.RevertObjectOverride(componentTarget, InteractionMode.UserAction);
-                }
-                else
-                {
-                    PrefabUtility.ApplyObjectOverride(componentTarget, prefabDetails.AssetPath, InteractionMode.UserAction);
-                }
-
-                break;
-
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        AssetDatabase.SaveAssets();
-
-        return new
-        {
-            target = CreateObjectSummary(targetGameObject),
-            scope = CreatePrefabOverrideScopeName(scope),
-            prefabSource = CreatePrefabAssetSummary(prefabDetails.SourceAsset, prefabDetails.OutermostPrefabInstanceRoot),
-            applied = new
-            {
-                scope = CreatePrefabOverrideScopeName(scope),
-                componentInstanceId = componentTarget != null ? componentTarget.GetInstanceID() : (int?)null
-            }
-        };
-    }
-
-    private static Component ResolvePrefabOverrideComponentTarget(
-        UnityEngine.Object resolvedObject,
-        GameObject targetGameObject,
-        int? componentInstanceId)
-    {
-        Component? componentTarget = null;
-
-        if (componentInstanceId.HasValue)
-        {
-            var resolvedComponentObject = ResolveObjectByInstanceId(componentInstanceId.Value, "componentInstanceId");
-            componentTarget = ResolveSceneComponentTargetAllowingTransform(resolvedComponentObject, "componentInstanceId");
-        }
-        else if (resolvedObject is Component resolvedComponent)
-        {
-            componentTarget = ResolveSceneComponentTargetAllowingTransform(resolvedComponent, "instanceId");
-        }
-
-        if (componentTarget == null)
-        {
-            throw new ArgumentException("Scope 'component' requires 'componentInstanceId' or an 'instanceId' that resolves to a Component.");
-        }
-
-        if (componentTarget.gameObject != targetGameObject)
-        {
-            throw new ArgumentException("Parameter 'componentInstanceId' must reference a component on the resolved target object.");
-        }
-
-        return componentTarget;
-    }
-
-    private static string CreatePrefabOverrideScopeName(PrefabOverrideScope scope)
-    {
-        return scope switch
-        {
-            PrefabOverrideScope.InstanceRoot => "instanceRoot",
-            PrefabOverrideScope.Object => "object",
-            PrefabOverrideScope.Component => "component",
-            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, null)
-        };
-    }
-
-    private static object CreatePrefabAssetSummary(GameObject prefabAsset, GameObject instanceContext)
-    {
-        var assetPath = AssetDatabase.GetAssetPath(prefabAsset);
-        var guid = AssetDatabase.AssetPathToGUID(assetPath);
-
-        return new
-        {
-            instanceId = prefabAsset.GetInstanceID(),
-            name = prefabAsset.name,
-            unityType = prefabAsset.GetType().FullName,
-            assetPath = string.IsNullOrWhiteSpace(assetPath) ? null : assetPath,
-            guid = string.IsNullOrWhiteSpace(guid) ? null : guid,
-            prefabInstanceStatus = PrefabUtility.GetPrefabInstanceStatus(instanceContext).ToString(),
-            prefabAssetType = PrefabUtility.GetPrefabAssetType(instanceContext).ToString()
-        };
-    }
 
     private static object CreateSceneSummary(Scene scene, bool isActive)
     {

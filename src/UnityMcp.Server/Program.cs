@@ -1,7 +1,4 @@
-using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using UnityMcp.Server.Mcp;
 using UnityMcp.Server.Options;
@@ -19,6 +16,7 @@ builder.Services.AddSingleton<IUnityJsonRpcForwarder, UnityJsonRpcForwarder>();
 builder.Services.AddSingleton<IUnityConnectionStatusProvider, UnityConnectionStatusProvider>();
 builder.Services.AddSingleton<McpToolCatalog>();
 builder.Services.AddSingleton<McpRequestHandler>();
+builder.Services.AddTransient<CliSessionHandler>();
 
 var app = builder.Build();
 
@@ -119,14 +117,13 @@ app.Map("/ws/cli", async context =>
         return;
     }
 
-    var relay = context.RequestServices.GetRequiredService<UnityRelayService>();
-    var loggerFactory = context.RequestServices.GetRequiredService<ILoggerFactory>();
-    var logger = loggerFactory.CreateLogger("CliSocketEndpoint");
+    var cliHandler = context.RequestServices.GetRequiredService<CliSessionHandler>();
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("CliSocketEndpoint");
 
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
     logger.LogInformation("Accepted CLI WebSocket connection from {RemoteIp}", context.Connection.RemoteIpAddress);
 
-    await HandleCliSessionAsync(socket, relay, logger, context.RequestAborted);
+    await cliHandler.HandleAsync(socket, context.RequestAborted);
 });
 
 var options = app.Services.GetRequiredService<IOptions<ServerOptions>>();
@@ -167,150 +164,4 @@ static async Task HandleMcpPostAsync(HttpContext context, McpRequestHandler mcpH
             JsonRpcProtocol.CreateError(idNode: null, code: JsonRpcErrorCodes.InternalError, message: "Internal server error."),
             cancellationToken);
     }
-}
-
-static async Task HandleCliSessionAsync(
-    WebSocket socket,
-    UnityRelayService relay,
-    ILogger logger,
-    CancellationToken cancellationToken)
-{
-    while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
-    {
-        string? message;
-        try
-        {
-            message = await WebSocketTextMessageReader.ReadAsync(socket, cancellationToken);
-        }
-        catch (OperationCanceledException)
-        {
-            break;
-        }
-        catch (WebSocketException ex)
-        {
-            logger.LogWarning(ex, "CLI socket receive loop ended due to WebSocket error.");
-            break;
-        }
-
-        if (message is null)
-        {
-            break;
-        }
-
-        if (!JsonRpcProtocol.TryParse(message, out var document, out var parseError))
-        {
-            var parseResponse = JsonRpcProtocol.CreateError(
-                idNode: null,
-                code: JsonRpcErrorCodes.ParseError,
-                message: $"Invalid JSON: {parseError}");
-
-            await SendAsync(socket, parseResponse, cancellationToken);
-            continue;
-        }
-
-        using var parsedDocument = document!;
-        {
-            var root = parsedDocument.RootElement;
-
-            if (root.ValueKind != JsonValueKind.Object)
-            {
-                var invalidRequest = JsonRpcProtocol.CreateError(
-                    idNode: null,
-                    code: JsonRpcErrorCodes.InvalidRequest,
-                    message: "JSON-RPC payload must be an object.");
-
-                await SendAsync(socket, invalidRequest, cancellationToken);
-                continue;
-            }
-
-            if (!JsonRpcProtocol.TryGetId(root, out var idNode, out var idKey) || string.IsNullOrWhiteSpace(idKey))
-            {
-                var invalidRequest = JsonRpcProtocol.CreateError(
-                    idNode: null,
-                    code: JsonRpcErrorCodes.InvalidRequest,
-                    message: "JSON-RPC request must include a string or numeric id.");
-
-                await SendAsync(socket, invalidRequest, cancellationToken);
-                continue;
-            }
-
-            if (!JsonRpcProtocol.TryGetMethod(root, out var method) || string.IsNullOrWhiteSpace(method))
-            {
-                var invalidRequest = JsonRpcProtocol.CreateError(
-                    idNode,
-                    JsonRpcErrorCodes.InvalidRequest,
-                    "JSON-RPC request must include a method name.");
-
-                await SendAsync(socket, invalidRequest, cancellationToken);
-                continue;
-            }
-
-            if (string.Equals(method, "ping", StringComparison.Ordinal))
-            {
-                var pingResult = new JsonObject
-                {
-                    ["ok"] = true,
-                    ["serverTimeUtc"] = DateTimeOffset.UtcNow.ToString("O"),
-                    ["source"] = "server"
-                };
-
-                await SendAsync(socket, JsonRpcProtocol.CreateResult(idNode, pingResult), cancellationToken);
-                continue;
-            }
-
-            try
-            {
-                var responseJson = await relay.ForwardToUnityAsync(message, idKey!, cancellationToken);
-                await SendAsync(socket, responseJson, cancellationToken);
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("Duplicate JSON-RPC request id", StringComparison.Ordinal))
-            {
-                var error = JsonRpcProtocol.CreateError(idNode, JsonRpcErrorCodes.DuplicateRequestId, ex.Message);
-                await SendAsync(socket, error, cancellationToken);
-            }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("Unity is not connected", StringComparison.Ordinal))
-            {
-                var error = JsonRpcProtocol.CreateError(idNode, JsonRpcErrorCodes.UnityNotConnected, ex.Message);
-                await SendAsync(socket, error, cancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                var error = JsonRpcProtocol.CreateError(idNode, JsonRpcErrorCodes.UnityTimeout, "Timed out waiting for Unity response.");
-                await SendAsync(socket, error, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Unhandled CLI request processing error.");
-                var error = JsonRpcProtocol.CreateError(idNode, JsonRpcErrorCodes.InternalError, "Internal server error.");
-                await SendAsync(socket, error, cancellationToken);
-            }
-        }
-    }
-
-    if (socket.State == WebSocketState.Open)
-    {
-        try
-        {
-            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "CLI session closed.", CancellationToken.None);
-        }
-        catch
-        {
-            // Ignore cleanup failures.
-        }
-    }
-}
-
-static async Task SendAsync(WebSocket socket, string payload, CancellationToken cancellationToken)
-{
-    if (socket.State != WebSocketState.Open)
-    {
-        return;
-    }
-
-    var bytes = Encoding.UTF8.GetBytes(payload);
-    await socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, endOfMessage: true, cancellationToken);
 }

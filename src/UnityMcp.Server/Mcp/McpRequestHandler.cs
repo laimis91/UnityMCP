@@ -10,12 +10,6 @@ public sealed class McpRequestHandler
 {
     private const string DefaultProtocolVersion = "2025-06-18";
 
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        PropertyNamingPolicy = null,
-        WriteIndented = false
-    };
-
     private readonly McpToolCatalog _toolCatalog;
     private readonly IUnityJsonRpcForwarder _unityForwarder;
     private readonly IUnityConnectionStatusProvider _unityConnectionStatusProvider;
@@ -239,30 +233,26 @@ public sealed class McpRequestHandler
             }
         }
 
-        var unityRequestId = $"mcp-{Interlocked.Increment(ref _nextUnityRequestId)}";
-        var unityRequest = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = unityRequestId,
-            ["method"] = toolName
-        };
-
-        if (argumentsNode is not null)
-        {
-            unityRequest["params"] = argumentsNode.DeepClone();
-        }
-
         try
         {
-            var unityResponseJson = await _unityForwarder.ForwardAsync(
-                unityRequest.ToJsonString(SerializerOptions),
-                requestIdKey: $"s:{unityRequestId}",
-                cancellationToken);
-
+            var unityResponseJson = await ForwardToUnityAsync(toolName, argumentsNode, cancellationToken);
             var toolResult = CreateToolResultFromUnityResponse(toolName, unityResponseJson);
             return Json(200, JsonRpcProtocol.CreateResult(requestIdNode, toolResult));
         }
-        catch (InvalidOperationException ex)
+        catch (UnityNotConnectedException ex)
+        {
+            return Json(200, JsonRpcProtocol.CreateResult(
+                requestIdNode,
+                CreateToolResult(
+                    isError: true,
+                    text: ex.Message,
+                    structuredContent: new JsonObject
+                    {
+                        ["tool"] = toolName,
+                        ["errorType"] = "relay_error"
+                    })));
+        }
+        catch (DuplicateRequestIdException ex)
         {
             return Json(200, JsonRpcProtocol.CreateResult(
                 requestIdNode,
@@ -506,7 +496,7 @@ public sealed class McpRequestHandler
 
         try
         {
-            var result = await CreateResourcesReadResultAsync(uri, cancellationToken);
+            var result = await ResolveResourceAsync(uri, cancellationToken);
             return Json(200, JsonRpcProtocol.CreateResult(requestIdNode, result));
         }
         catch (ArgumentException ex)
@@ -516,6 +506,10 @@ public sealed class McpRequestHandler
                 JsonRpcErrorCodes.InvalidParams,
                 ex.Message,
                 CreateResourceInvalidParamsData(uriText, ex)));
+        }
+        catch (UnityNotConnectedException ex)
+        {
+            return Json(200, JsonRpcProtocol.CreateError(requestIdNode, JsonRpcErrorCodes.UnityNotConnected, ex.Message));
         }
         catch (InvalidOperationException ex)
         {
@@ -527,129 +521,31 @@ public sealed class McpRequestHandler
         }
     }
 
-    private async Task<JsonObject> CreateResourcesReadResultAsync(Uri uri, CancellationToken cancellationToken)
+    private async Task<JsonObject> ResolveResourceAsync(Uri uri, CancellationToken cancellationToken)
     {
-        var host = uri.Host;
+        var host = uri.Host.ToLowerInvariant();
         var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var seg0 = segments.ElementAtOrDefault(0)?.ToLowerInvariant();
+        var seg1 = segments.ElementAtOrDefault(1)?.ToLowerInvariant();
 
-        JsonNode? payloadNode;
-        if (string.Equals(host, "server", StringComparison.OrdinalIgnoreCase) &&
-            segments.Length == 1 &&
-            string.Equals(segments[0], "info", StringComparison.OrdinalIgnoreCase))
+        var payloadNode = (host, segments.Length, seg0, seg1) switch
         {
-            payloadNode = new JsonObject
-            {
-                ["name"] = "UnityMCP Server",
-                ["version"] = "0.1.0",
-                ["transport"] = "MCP HTTP + Unity WebSocket bridge",
-                ["mcpEndpoint"] = "/mcp",
-                ["unityEndpoint"] = "/ws/unity",
-                ["unityConnected"] = _unityConnectionStatusProvider.IsUnityConnected
-            };
-        }
-        else if (string.Equals(host, "unity", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "connection", StringComparison.OrdinalIgnoreCase))
-        {
-            payloadNode = new JsonObject
-            {
-                ["connected"] = _unityConnectionStatusProvider.IsUnityConnected,
-                ["transport"] = "WebSocket"
-            };
-        }
-        else if (string.Equals(host, "editor", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "playmode-state", StringComparison.OrdinalIgnoreCase))
-        {
-            payloadNode = await CallUnityMethodResultAsync("editor.getPlayModeState", argumentsNode: null, cancellationToken);
-        }
-        else if (string.Equals(host, "editor", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "console-logs", StringComparison.OrdinalIgnoreCase))
-        {
-            var argumentsNode = CreateConsoleResourceArguments(ParseResourceQueryParameters(uri));
-            payloadNode = await CallUnityMethodResultAsync("editor.getConsoleLogs", argumentsNode, cancellationToken);
-        }
-        else if (string.Equals(host, "editor", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 2 &&
-                 string.Equals(segments[0], "console-tail", StringComparison.OrdinalIgnoreCase))
-        {
-            var afterSequenceText = Uri.UnescapeDataString(segments[1]);
-            var queryParameters = ParseResourceQueryParameters(uri);
-            var argumentsNode = CreateConsoleTailResourceArguments(queryParameters, afterSequenceText);
-            payloadNode = await CallUnityMethodResultAsync("editor.consoleTail", argumentsNode, cancellationToken);
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "active", StringComparison.OrdinalIgnoreCase))
-        {
-            payloadNode = await CallUnityMethodResultAsync("scene.getActiveScene", argumentsNode: null, cancellationToken);
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "open-scenes", StringComparison.OrdinalIgnoreCase))
-        {
-            payloadNode = await CallUnityMethodResultAsync("scene.listOpenScenes", argumentsNode: null, cancellationToken);
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 2 &&
-                 string.Equals(segments[0], "selection", StringComparison.OrdinalIgnoreCase) &&
-                 string.Equals(segments[1], "active", StringComparison.OrdinalIgnoreCase))
-        {
-            var selectionNode = await CallUnityMethodResultAsync("scene.getSelection", argumentsNode: null, cancellationToken);
-            payloadNode = ProjectSelectionActiveResource(selectionNode);
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 3 &&
-                 string.Equals(segments[0], "selection", StringComparison.OrdinalIgnoreCase) &&
-                 string.Equals(segments[1], "index", StringComparison.OrdinalIgnoreCase))
-        {
-            var selectionNode = await CallUnityMethodResultAsync("scene.getSelection", argumentsNode: null, cancellationToken);
-            payloadNode = ProjectSelectionIndexResource(selectionNode, Uri.UnescapeDataString(segments[2]));
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 1 &&
-                 string.Equals(segments[0], "selection", StringComparison.OrdinalIgnoreCase))
-        {
-            payloadNode = await CallUnityMethodResultAsync("scene.getSelection", argumentsNode: null, cancellationToken);
-        }
-        else if (string.Equals(host, "scene", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 2 &&
-                 string.Equals(segments[0], "find-by-tag", StringComparison.OrdinalIgnoreCase))
-        {
-            var tag = Uri.UnescapeDataString(segments[1]);
-            if (string.IsNullOrWhiteSpace(tag))
-            {
-                throw new ArgumentException("Resource tag segment cannot be empty.");
-            }
+            ("server", 1, "info", _) => ResolveServerInfo(),
+            ("unity", 1, "connection", _) => ResolveUnityConnection(),
+            ("editor", 1, "playmode-state", _) => await CallUnityMethodAsync("editor.getPlayModeState", null, cancellationToken),
+            ("editor", 1, "console-logs", _) => await CallUnityMethodAsync("editor.getConsoleLogs", CreateConsoleResourceArguments(ParseQueryParams(uri)), cancellationToken),
+            ("editor", 2, "console-tail", _) => await ResolveConsoleTailAsync(uri, segments, cancellationToken),
+            ("scene", 1, "active", _) => await CallUnityMethodAsync("scene.getActiveScene", null, cancellationToken),
+            ("scene", 1, "open-scenes", _) => await CallUnityMethodAsync("scene.listOpenScenes", null, cancellationToken),
+            ("scene", 1, "selection", _) => await CallUnityMethodAsync("scene.getSelection", null, cancellationToken),
+            ("scene", 2, "selection", "active") => ProjectSelectionActiveResource(await CallUnityMethodAsync("scene.getSelection", null, cancellationToken)),
+            ("scene", 3, "selection", "index") => ProjectSelectionIndexResource(await CallUnityMethodAsync("scene.getSelection", null, cancellationToken), Uri.UnescapeDataString(segments[2])),
+            ("scene", 2, "find-by-tag", _) => await ResolveFindByTagAsync(segments, cancellationToken),
+            ("assets", 2, "find", _) => await ResolveAssetsFindAsync(uri, segments, cancellationToken),
+            _ => throw new ArgumentException($"Unsupported resource URI '{uri}'.")
+        };
 
-            payloadNode = await CallUnityMethodResultAsync(
-                "scene.findByTag",
-                new JsonObject
-                {
-                    ["tag"] = tag
-                },
-                cancellationToken);
-        }
-        else if (string.Equals(host, "assets", StringComparison.OrdinalIgnoreCase) &&
-                 segments.Length == 2 &&
-                 string.Equals(segments[0], "find", StringComparison.OrdinalIgnoreCase))
-        {
-            var query = Uri.UnescapeDataString(segments[1]);
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                throw new ArgumentException("Asset query segment cannot be empty.", "query");
-            }
-
-            var argumentsNode = CreateAssetsFindResourceArguments(query, ParseResourceQueryParameters(uri));
-            payloadNode = await CallUnityMethodResultAsync("assets.find", argumentsNode, cancellationToken);
-        }
-        else
-        {
-            throw new ArgumentException($"Unsupported resource URI '{uri}'.");
-        }
-
-        var payloadJson = payloadNode?.ToJsonString(SerializerOptions) ?? "null";
+        var payloadJson = payloadNode?.ToJsonString(JsonRpcProtocol.SerializerOptions) ?? "null";
         return new JsonObject
         {
             ["contents"] = new JsonArray
@@ -664,7 +560,60 @@ public sealed class McpRequestHandler
         };
     }
 
-    private static Dictionary<string, StringValues> ParseResourceQueryParameters(Uri uri)
+    private JsonNode ResolveServerInfo()
+    {
+        return new JsonObject
+        {
+            ["name"] = "UnityMCP Server",
+            ["version"] = "0.1.0",
+            ["transport"] = "MCP HTTP + Unity WebSocket bridge",
+            ["mcpEndpoint"] = "/mcp",
+            ["unityEndpoint"] = "/ws/unity",
+            ["unityConnected"] = _unityConnectionStatusProvider.IsUnityConnected
+        };
+    }
+
+    private JsonNode ResolveUnityConnection()
+    {
+        return new JsonObject
+        {
+            ["connected"] = _unityConnectionStatusProvider.IsUnityConnected,
+            ["transport"] = "WebSocket"
+        };
+    }
+
+    private async Task<JsonNode> ResolveConsoleTailAsync(Uri uri, string[] segments, CancellationToken cancellationToken)
+    {
+        var afterSequenceText = Uri.UnescapeDataString(segments[1]);
+        var queryParameters = ParseQueryParams(uri);
+        var argumentsNode = CreateConsoleTailResourceArguments(queryParameters, afterSequenceText);
+        return await CallUnityMethodAsync("editor.consoleTail", argumentsNode, cancellationToken);
+    }
+
+    private async Task<JsonNode> ResolveFindByTagAsync(string[] segments, CancellationToken cancellationToken)
+    {
+        var tag = Uri.UnescapeDataString(segments[1]);
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Resource tag segment cannot be empty.");
+        }
+
+        return await CallUnityMethodAsync("scene.findByTag", new JsonObject { ["tag"] = tag }, cancellationToken);
+    }
+
+    private async Task<JsonNode> ResolveAssetsFindAsync(Uri uri, string[] segments, CancellationToken cancellationToken)
+    {
+        var query = Uri.UnescapeDataString(segments[1]);
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            throw new ArgumentException("Asset query segment cannot be empty.", "query");
+        }
+
+        var argumentsNode = CreateAssetsFindResourceArguments(query, ParseQueryParams(uri));
+        return await CallUnityMethodAsync("assets.find", argumentsNode, cancellationToken);
+    }
+
+    private static Dictionary<string, StringValues> ParseQueryParams(Uri uri)
     {
         return QueryHelpers.ParseQuery(uri.Query);
     }
@@ -937,26 +886,25 @@ public sealed class McpRequestHandler
         return itemNode?.DeepClone() ?? JsonValue.Create((string?)null)!;
     }
 
-    private async Task<JsonNode> CallUnityMethodResultAsync(string methodName, JsonNode? argumentsNode, CancellationToken cancellationToken)
+    private async Task<string> ForwardToUnityAsync(string methodName, JsonNode? argumentsNode, CancellationToken cancellationToken)
     {
         var unityRequestId = $"mcp-{Interlocked.Increment(ref _nextUnityRequestId)}";
-        var unityRequest = new JsonObject
-        {
-            ["jsonrpc"] = "2.0",
-            ["id"] = unityRequestId,
-            ["method"] = methodName
-        };
+        var unityRequest = BuildUnityRequestEnvelope(unityRequestId, methodName, argumentsNode);
 
-        if (argumentsNode is not null)
-        {
-            unityRequest["params"] = argumentsNode.DeepClone();
-        }
-
-        var unityResponseJson = await _unityForwarder.ForwardAsync(
-            unityRequest.ToJsonString(SerializerOptions),
+        return await _unityForwarder.ForwardAsync(
+            unityRequest.ToJsonString(JsonRpcProtocol.SerializerOptions),
             requestIdKey: $"s:{unityRequestId}",
             cancellationToken);
+    }
 
+    private async Task<JsonNode> CallUnityMethodAsync(string methodName, JsonNode? argumentsNode, CancellationToken cancellationToken)
+    {
+        var unityResponseJson = await ForwardToUnityAsync(methodName, argumentsNode, cancellationToken);
+        return ParseUnityResultOrThrow(methodName, unityResponseJson);
+    }
+
+    private static JsonNode ParseUnityResultOrThrow(string methodName, string unityResponseJson)
+    {
         if (!JsonRpcProtocol.TryParse(unityResponseJson, out var unityDocument, out var parseError))
         {
             throw new InvalidOperationException($"Unity returned invalid JSON: {parseError}");
@@ -1049,8 +997,25 @@ public sealed class McpRequestHandler
             };
         }
 
-        var text = resultNode?.ToJsonString(SerializerOptions) ?? "null";
+        var text = resultNode?.ToJsonString(JsonRpcProtocol.SerializerOptions) ?? "null";
         return CreateToolResult(isError: false, text: text, structuredContent: structuredContent);
+    }
+
+    private static JsonObject BuildUnityRequestEnvelope(string requestId, string methodName, JsonNode? argumentsNode)
+    {
+        var envelope = new JsonObject
+        {
+            ["jsonrpc"] = "2.0",
+            ["id"] = requestId,
+            ["method"] = methodName
+        };
+
+        if (argumentsNode is not null)
+        {
+            envelope["params"] = argumentsNode.DeepClone();
+        }
+
+        return envelope;
     }
 
     private static JsonObject CreateToolResult(bool isError, string text, JsonObject? structuredContent)

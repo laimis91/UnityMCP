@@ -29,7 +29,7 @@ public sealed class UnityRelayService
     {
         if (!_pendingRequestStore.TryRegister(requestIdKey, out var pending))
         {
-            throw new InvalidOperationException($"Duplicate JSON-RPC request id '{requestIdKey}'.");
+            throw new DuplicateRequestIdException(requestIdKey);
         }
 
         try
@@ -37,8 +37,8 @@ public sealed class UnityRelayService
             var sent = await _unitySocketHub.TrySendAsync(requestJson, cancellationToken);
             if (!sent)
             {
-                _pendingRequestStore.TryFail(requestIdKey, new InvalidOperationException("Unity is not connected."));
-                throw new InvalidOperationException("Unity is not connected.");
+                _pendingRequestStore.TryFail(requestIdKey, new UnityNotConnectedException());
+                throw new UnityNotConnectedException();
             }
 
             return await pending.Task.WaitAsync(_timeout, cancellationToken);

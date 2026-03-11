@@ -5,7 +5,7 @@ namespace UnityMcp.Server.Protocol;
 
 public static class JsonRpcProtocol
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
+    public static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNamingPolicy = null,
         WriteIndented = false
@@ -66,7 +66,7 @@ public static class JsonRpcProtocol
         return true;
     }
 
-    public static bool TryGetIdKey(JsonElement idElement, out string? idKey)
+    private static bool TryGetIdKey(JsonElement idElement, out string? idKey)
     {
         idKey = null;
 

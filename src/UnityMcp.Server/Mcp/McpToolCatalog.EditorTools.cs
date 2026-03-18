@@ -256,5 +256,54 @@ public sealed partial class McpToolCatalog
                     }
                 }
             });
+
+        yield return new McpToolDefinition(
+            "sceneView.getCamera",
+            "Returns the position, rotation, and settings of the Unity Editor Scene View camera.",
+            EmptyObjectSchema());
+
+        yield return new McpToolDefinition(
+            "sceneView.setCamera",
+            "Moves or rotates the Unity Editor Scene View camera and optionally changes view mode settings.",
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["properties"] = new JsonObject
+                {
+                    ["pivot"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["description"] = "The point the Scene View camera orbits around [x,y,z].",
+                        ["minItems"] = 3,
+                        ["maxItems"] = 3,
+                        ["items"] = new JsonObject { ["type"] = "number" }
+                    },
+                    ["rotation"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["description"] = "Camera rotation as quaternion [x,y,z,w].",
+                        ["minItems"] = 4,
+                        ["maxItems"] = 4,
+                        ["items"] = new JsonObject { ["type"] = "number" }
+                    },
+                    ["size"] = new JsonObject
+                    {
+                        ["type"] = "number",
+                        ["description"] = "The viewing size/zoom level (distance from pivot).",
+                        ["exclusiveMinimum"] = 0
+                    },
+                    ["orthographic"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Switch between orthographic and perspective modes."
+                    },
+                    ["in2DMode"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Enable or disable 2D mode."
+                    }
+                }
+            });
     }
 }

@@ -215,5 +215,108 @@ public sealed partial class McpToolCatalog
                     ["typeName"] = new JsonObject { ["type"] = "string", ["description"] = "Fully qualified or short name of a ScriptableObject subclass." }
                 }
             });
+
+        yield return new McpToolDefinition(
+            "textureImporter.getSettings",
+            "Get the import settings for a texture asset.",
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["required"] = new JsonArray("assetPath"),
+                ["properties"] = new JsonObject
+                {
+                    ["assetPath"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Asset path of the texture (e.g. Assets/Textures/MyTexture.png)."
+                    }
+                }
+            });
+
+        yield return new McpToolDefinition(
+            "textureImporter.setSettings",
+            "Modify import settings for a texture asset.",
+            new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["required"] = new JsonArray("assetPath"),
+                ["properties"] = new JsonObject
+                {
+                    ["assetPath"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Asset path of the texture (e.g. Assets/Textures/MyTexture.png)."
+                    },
+                    ["textureType"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Texture type. Values: Default, NormalMap, Editor GUI and Legacy GUI, Sprite, Cursor, Cookie, Lightmap, Single Channel."
+                    },
+                    ["maxTextureSize"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Maximum texture size. Must be a power of 2: 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384."
+                    },
+                    ["textureCompression"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Compression mode. Values: Uncompressed, Compressed, CompressedHQ, CompressedLQ."
+                    },
+                    ["filterMode"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Filter mode. Values: Point, Bilinear, Trilinear."
+                    },
+                    ["wrapMode"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Wrap mode. Values: Repeat, Clamp, Mirror, MirrorOnce."
+                    },
+                    ["mipmapEnabled"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Whether to generate mipmaps."
+                    },
+                    ["isReadable"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Whether the texture is readable from scripts at runtime (CPU access)."
+                    },
+                    ["sRGBTexture"] = new JsonObject
+                    {
+                        ["type"] = "boolean",
+                        ["description"] = "Whether the texture uses sRGB color space."
+                    },
+                    ["alphaSource"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Alpha source. Values: None, FromInput, FromGrayScale."
+                    },
+                    ["npotScale"] = new JsonObject
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Non-power-of-two scaling. Values: None, ToNearest, ToLarger, ToSmaller."
+                    },
+                    ["anisoLevel"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["minimum"] = 0,
+                        ["maximum"] = 16,
+                        ["description"] = "Anisotropic filtering level (0-16)."
+                    },
+                    ["spriteMode"] = new JsonObject
+                    {
+                        ["type"] = "integer",
+                        ["description"] = "Sprite mode: 0=None, 1=Single, 2=Multiple."
+                    },
+                    ["spritePixelsPerUnit"] = new JsonObject
+                    {
+                        ["type"] = "number",
+                        ["description"] = "Pixels per unit for sprite mode."
+                    }
+                }
+            });
     }
 }

@@ -152,5 +152,190 @@ namespace UnityMcp.Editor
                 applied = true
             });
         }
+
+        // ── AnimationClip ─────────────────────────────────────────────────────
+
+        private static AnimationClip LoadAnimationClipFromAssetPath(string assetPath)
+        {
+            var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(assetPath);
+            if (clip == null)
+                throw new ArgumentException($"No AnimationClip found at '{assetPath}'.");
+            return clip;
+        }
+
+        private static string BuildGetAnimationClipPropertiesResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "animationClip.getProperties");
+            var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+            var clip = LoadAnimationClipFromAssetPath(assetPath);
+            var bindings = AnimationUtility.GetCurveBindings(clip);
+            var ptrBindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+            var events = AnimationUtility.GetAnimationEvents(clip);
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                name = clip.name,
+                assetPath,
+                length = clip.length,
+                frameRate = clip.frameRate,
+                wrapMode = clip.wrapMode.ToString(),
+                legacy = clip.legacy,
+                isLooping = clip.isLooping,
+                isEmpty = clip.empty,
+                isHumanMotion = clip.humanMotion,
+                hasMotionCurves = clip.hasMotionCurves,
+                hasRootCurves = clip.hasRootCurves,
+                eventCount = events.Length,
+                curveBindingCount = bindings.Length + ptrBindings.Length
+            });
+        }
+
+        private static string BuildSetAnimationClipPropertiesResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "animationClip.setProperties");
+            var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+            var clip = LoadAnimationClipFromAssetPath(assetPath);
+
+            Undo.RecordObject(clip, "Set AnimationClip Properties");
+            var applied = new System.Collections.Generic.List<string>();
+
+            if (TryGetFloat(paramsObject, "frameRate", out var frameRate))
+            {
+                if (frameRate <= 0f)
+                    throw new ArgumentException("Parameter 'frameRate' must be greater than 0.");
+                clip.frameRate = frameRate;
+                applied.Add("frameRate");
+            }
+            if (paramsObject.TryGetValue("wrapMode", out var wm))
+            { clip.wrapMode = ParseEnumToken<WrapMode>(wm, "wrapMode"); applied.Add("wrapMode"); }
+            if (paramsObject.TryGetValue("legacy", out var leg) && leg.Type == JTokenType.Boolean)
+            { clip.legacy = leg.Value<bool>(); applied.Add("legacy"); }
+
+            EditorUtility.SetDirty(clip);
+            AssetDatabase.SaveAssets();
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                assetPath,
+                applied
+            });
+        }
+
+        private static string BuildGetAnimationClipCurveBindingsResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "animationClip.getCurveBindings");
+            var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+            var clip = LoadAnimationClipFromAssetPath(assetPath);
+
+            var maxResults = 500;
+            if (paramsObject.TryGetValue("maxResults", out var mrToken) && mrToken.Type == JTokenType.Integer)
+                maxResults = System.Math.Clamp(mrToken.Value<int>(), 1, 500);
+
+            var floatBindings = AnimationUtility.GetCurveBindings(clip);
+            var ptrBindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
+            var results = new System.Collections.Generic.List<object>();
+
+            foreach (var b in floatBindings)
+            {
+                if (results.Count >= maxResults) break;
+                results.Add(new
+                {
+                    path = b.path,
+                    propertyName = b.propertyName,
+                    type = b.type?.Name,
+                    isDiscreteCurve = b.isDiscreteCurve,
+                    isPPtrCurve = b.isPPtrCurve
+                });
+            }
+            foreach (var b in ptrBindings)
+            {
+                if (results.Count >= maxResults) break;
+                results.Add(new
+                {
+                    path = b.path,
+                    propertyName = b.propertyName,
+                    type = b.type?.Name,
+                    isDiscreteCurve = b.isDiscreteCurve,
+                    isPPtrCurve = b.isPPtrCurve
+                });
+            }
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                assetPath,
+                curveBindingCount = results.Count,
+                curveBindings = results
+            });
+        }
+
+        private static string BuildGetAnimationClipEventsResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "animationClip.getEvents");
+            var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+            var clip = LoadAnimationClipFromAssetPath(assetPath);
+
+            var events = AnimationUtility.GetAnimationEvents(clip);
+            var eventList = new object[events.Length];
+            for (var i = 0; i < events.Length; i++)
+            {
+                var e = events[i];
+                eventList[i] = new
+                {
+                    time = e.time,
+                    functionName = e.functionName,
+                    stringParameter = e.stringParameter,
+                    floatParameter = e.floatParameter,
+                    intParameter = e.intParameter
+                };
+            }
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                assetPath,
+                eventCount = events.Length,
+                events = eventList
+            });
+        }
+
+        private static string BuildSetAnimationClipEventsResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "animationClip.setEvents");
+            var assetPath = ParseRequiredStringParameter(paramsObject, "assetPath");
+            var clip = LoadAnimationClipFromAssetPath(assetPath);
+
+            if (!paramsObject.TryGetValue("events", out var eventsToken) || eventsToken.Type != JTokenType.Array)
+                throw new ArgumentException("Parameter 'events' is required and must be an array.");
+
+            var eventsArray = (JArray)eventsToken;
+            var newEvents = new AnimationEvent[eventsArray.Count];
+            for (var i = 0; i < eventsArray.Count; i++)
+            {
+                if (eventsArray[i] is not JObject evObj)
+                    throw new ArgumentException($"Event at index {i} must be an object.");
+
+                var evt = new AnimationEvent();
+                if (TryGetFloat(evObj, "time", out var evTime)) evt.time = evTime;
+                if (evObj.TryGetValue("functionName", out var fn) && fn.Type == JTokenType.String)
+                    evt.functionName = fn.Value<string>()!;
+                if (evObj.TryGetValue("stringParameter", out var sp) && sp.Type == JTokenType.String)
+                    evt.stringParameter = sp.Value<string>()!;
+                if (TryGetFloat(evObj, "floatParameter", out var fp)) evt.floatParameter = fp;
+                if (evObj.TryGetValue("intParameter", out var ip) && ip.Type == JTokenType.Integer)
+                    evt.intParameter = ip.Value<int>();
+                newEvents[i] = evt;
+            }
+
+            Undo.RecordObject(clip, "Set AnimationClip Events");
+            AnimationUtility.SetAnimationEvents(clip, newEvents);
+            EditorUtility.SetDirty(clip);
+            AssetDatabase.SaveAssets();
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                assetPath,
+                eventCount = newEvents.Length,
+                updated = true
+            });
+        }
     }
 }

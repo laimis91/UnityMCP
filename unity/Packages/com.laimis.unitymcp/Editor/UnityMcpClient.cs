@@ -679,6 +679,11 @@ internal sealed partial class UnityMcpClient : IDisposable
                 "material.setRenderQueue" => BuildSetMaterialRenderQueueResponse(idToken, root),
                 "textureImporter.getSettings" => BuildGetTextureImporterSettingsResponse(idToken, root),
                 "textureImporter.setSettings" => BuildSetTextureImporterSettingsResponse(idToken, root),
+                "animationClip.getProperties" => BuildGetAnimationClipPropertiesResponse(idToken, root),
+                "animationClip.setProperties" => BuildSetAnimationClipPropertiesResponse(idToken, root),
+                "animationClip.getCurveBindings" => BuildGetAnimationClipCurveBindingsResponse(idToken, root),
+                "animationClip.getEvents" => BuildGetAnimationClipEventsResponse(idToken, root),
+                "animationClip.setEvents" => BuildSetAnimationClipEventsResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 

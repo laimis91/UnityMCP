@@ -492,5 +492,76 @@ namespace UnityMcp.Editor
 
             return normalized;
         }
+
+        // ── SceneView Camera ─────────────────────────────────────────────────
+
+        private static string BuildGetSceneViewCameraResponse(JToken idToken)
+        {
+            var sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null)
+                throw new ArgumentException("No active Scene View window is available.");
+
+            return UnityMcpProtocol.CreateResult(idToken, BuildSceneViewCameraSnapshot(sceneView));
+        }
+
+        private static string BuildSetSceneViewCameraResponse(JToken idToken, JObject root)
+        {
+            var paramsObject = RequireParamsObject(root, "sceneView.setCamera");
+
+            var pivot = ParseOptionalVector3Parameter(paramsObject, "pivot");
+            var size = ParseOptionalFloatParameter(paramsObject, "size");
+            var orthographic = ParseOptionalBooleanValueParameter(paramsObject, "orthographic");
+            var in2DMode = ParseOptionalBooleanValueParameter(paramsObject, "in2DMode");
+
+            Quaternion? rotation = null;
+            if (paramsObject.TryGetValue("rotation", out var rotationToken))
+            {
+                var values = ParseFloatArrayToken(rotationToken, "rotation", 4);
+                rotation = new Quaternion(values[0], values[1], values[2], values[3]);
+            }
+
+            if (!pivot.HasValue && rotation == null && !size.HasValue && !orthographic.HasValue && !in2DMode.HasValue)
+                throw new ArgumentException("At least one Scene View camera setting must be provided: pivot, rotation, size, orthographic, or in2DMode.");
+
+            if (size.HasValue && size.Value <= 0f)
+                throw new ArgumentException("Parameter 'size' must be greater than 0.");
+
+            var sceneView = SceneView.lastActiveSceneView;
+            if (sceneView == null)
+                throw new ArgumentException("No active Scene View window is available.");
+
+            if (pivot.HasValue) sceneView.pivot = pivot.Value;
+            if (rotation.HasValue) sceneView.rotation = rotation.Value;
+            if (size.HasValue) sceneView.size = size.Value;
+            if (orthographic.HasValue) sceneView.orthographic = orthographic.Value;
+            if (in2DMode.HasValue) sceneView.in2DMode = in2DMode.Value;
+
+            sceneView.Repaint();
+
+            return UnityMcpProtocol.CreateResult(idToken, new
+            {
+                pivotApplied = pivot.HasValue,
+                rotationApplied = rotation.HasValue,
+                sizeApplied = size.HasValue,
+                orthographicApplied = orthographic.HasValue,
+                in2DModeApplied = in2DMode.HasValue,
+                camera = BuildSceneViewCameraSnapshot(sceneView)
+            });
+        }
+
+        private static object BuildSceneViewCameraSnapshot(SceneView sceneView)
+        {
+            return new
+            {
+                pivot = new { x = sceneView.pivot.x, y = sceneView.pivot.y, z = sceneView.pivot.z },
+                rotation = new { x = sceneView.rotation.x, y = sceneView.rotation.y, z = sceneView.rotation.z, w = sceneView.rotation.w },
+                cameraPosition = new { x = sceneView.camera.transform.position.x, y = sceneView.camera.transform.position.y, z = sceneView.camera.transform.position.z },
+                cameraRotation = new { x = sceneView.camera.transform.rotation.x, y = sceneView.camera.transform.rotation.y, z = sceneView.camera.transform.rotation.z, w = sceneView.camera.transform.rotation.w },
+                size = sceneView.size,
+                orthographic = sceneView.orthographic,
+                in2DMode = sceneView.in2DMode,
+                cameraDistance = sceneView.cameraDistance
+            };
+        }
     }
 }

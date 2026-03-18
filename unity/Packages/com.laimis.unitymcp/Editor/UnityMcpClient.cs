@@ -684,6 +684,8 @@ internal sealed partial class UnityMcpClient : IDisposable
                 "animationClip.getCurveBindings" => BuildGetAnimationClipCurveBindingsResponse(idToken, root),
                 "animationClip.getEvents" => BuildGetAnimationClipEventsResponse(idToken, root),
                 "animationClip.setEvents" => BuildSetAnimationClipEventsResponse(idToken, root),
+                "sceneView.getCamera" => BuildGetSceneViewCameraResponse(idToken),
+                "sceneView.setCamera" => BuildSetSceneViewCameraResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 

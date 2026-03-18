@@ -677,6 +677,8 @@ internal sealed partial class UnityMcpClient : IDisposable
                 "material.setShader" => BuildSetMaterialShaderResponse(idToken, root),
                 "material.getRenderQueue" => BuildGetMaterialRenderQueueResponse(idToken, root),
                 "material.setRenderQueue" => BuildSetMaterialRenderQueueResponse(idToken, root),
+                "textureImporter.getSettings" => BuildGetTextureImporterSettingsResponse(idToken, root),
+                "textureImporter.setSettings" => BuildSetTextureImporterSettingsResponse(idToken, root),
                 _ => UnityMcpProtocol.CreateError(idToken, -32601, $"Method '{method}' is not supported by UnityMCP MVP.")
             };
 
